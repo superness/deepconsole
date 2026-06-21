@@ -720,12 +720,17 @@ ipcMain.handle('overmind:setStatus', async (_e, { status, focus }) => {
 });
 
 // Config / Key Store
-ipcMain.handle('config:getKeyStatus', () => keyStore.getKeyStatus());
+ipcMain.handle('config:getKeyStatus', () => {
+  if (!keyStore) initKeyStore();
+  return keyStore.getKeyStatus();
+});
 ipcMain.handle('config:setKey', (_e, key) => {
+  if (!keyStore) initKeyStore();
   keyStore.setKey(String(key || '').trim());
   return keyStore.getKeyStatus();
 });
 ipcMain.handle('config:clearKey', () => {
+  if (!keyStore) initKeyStore();
   keyStore.clearKey();
   return keyStore.getKeyStatus();
 });
