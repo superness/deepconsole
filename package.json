@@ -27,7 +27,7 @@
     "extraResources": [
       { "from": "build/abuddi-backend.exe", "to": "abuddi-backend.exe" }
     ],
-    "win": { "target": "nsis" },
+    "win": { "target": ["nsis", "portable"] },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
   }
 }
