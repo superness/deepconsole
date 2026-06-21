@@ -62,13 +62,23 @@ function backendEnv() {
 }
 
 function startLLMServer() {
-  const serverPath = path.resolve(__dirname, '..', 'abuddi');
-  log(`[LLM] Starting from: ${serverPath}`);
+  const cp = require('child_process');
   try {
-    llmProcess = require('child_process').spawn(
-      'python', ['-m', 'uvicorn', 'server:app', '--host', '127.0.0.1', '--port', String(LLM_PORT)],
-      { cwd: serverPath, env: backendEnv(), stdio: ['pipe', 'pipe', 'pipe'], shell: true }
-    );
+    if (app.isPackaged) {
+      const exe = path.join(process.resourcesPath, 'abuddi-backend.exe');
+      log(`[LLM] Starting bundled backend: ${exe}`);
+      llmProcess = cp.spawn(
+        exe, ['--host', '127.0.0.1', '--port', String(LLM_PORT)],
+        { env: backendEnv(), stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+    } else {
+      const serverPath = path.resolve(__dirname, '..', 'abuddi');
+      log(`[LLM] Starting from: ${serverPath}`);
+      llmProcess = cp.spawn(
+        'python', ['-m', 'uvicorn', 'server:app', '--host', '127.0.0.1', '--port', String(LLM_PORT)],
+        { cwd: serverPath, env: backendEnv(), stdio: ['pipe', 'pipe', 'pipe'], shell: true }
+      );
+    }
     llmProcess.stdout.on('data', (data) => { const text = data.toString().trim(); if (text) log(`[LLM] ${text}`); });
     llmProcess.stderr.on('data', (data) => { const text = data.toString().trim(); if (text) log(`[LLM] ${text}`); });
     llmProcess.on('close', (code) => { log(`[LLM] Process exited with code ${code}`); llmProcess = null; });
@@ -832,7 +842,11 @@ app.whenReady().then(() => {
   initKeyStore();
   loadArmIdentity(); // populate armIdentity now so Overmind IPC handlers never deref null
   ensureSharedService('LLM', LLM_PORT, startLLMServer);
-  ensureSharedService('Overmind', OVERMIND_PORT, startOvermind);
+  if (!app.isPackaged) {
+    ensureSharedService('Overmind', OVERMIND_PORT, startOvermind);
+  } else {
+    log('[Overmind] Skipped in packaged build (single-instance).');
+  }
   startBrowserApiServer();
   createMainWindow();
   setTimeout(() => {
