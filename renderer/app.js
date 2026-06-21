@@ -3008,3 +3008,40 @@ window.deepconsole.overmind.onEvent((ev) => {
   else if (ev.type === 'board') { renderBoard(ev.board); autonomousWorker.onBoard(ev.board); }
   else if (ev.type === 'ask' && ev.to === myArmId) addIncomingAsk(ev);
 });
+
+// ─── Key Gate ────────────────────────────────────────────────────────────────
+async function enforceKeyGate() {
+  const gate = document.getElementById('key-gate');
+  const input = document.getElementById('key-input');
+  const err = document.getElementById('key-error');
+  const save = document.getElementById('key-save');
+
+  const status = await window.deepconsole.config.getKeyStatus();
+  if (!status.hasKey) gate.classList.remove('hidden');
+
+  save.onclick = async () => {
+    const val = input.value.trim();
+    if (!val.startsWith('sk-')) {
+      err.textContent = 'That does not look like a DeepSeek key (expected sk-...).';
+      err.classList.remove('hidden');
+      return;
+    }
+    await window.deepconsole.config.setKey(val);
+    gate.classList.add('hidden');
+    // The backend reads the key at spawn; if it was already up without a key,
+    // a full app restart applies it. Inform the user.
+    err.classList.add('hidden');
+  };
+
+  document.getElementById('open-settings').onclick = async () => {
+    const s = await window.deepconsole.config.getKeyStatus();
+    const masked = s.masked ? ` (current: ${s.masked}, ${s.source})` : '';
+    input.value = '';
+    err.textContent = '';
+    err.classList.add('hidden');
+    document.querySelector('.key-card p').textContent =
+      `Update your DeepSeek API key${masked}.`;
+    gate.classList.remove('hidden');
+  };
+}
+enforceKeyGate();

@@ -19,6 +19,7 @@
       <div class="titlebar-actions">
         <button id="memory-panel-toggle" class="icon-btn" title="Working Memory">🧠</button>
         <button id="agent-panel-toggle" class="icon-btn" title="Agent Command Center">🤖</button>
+        <button id="open-settings" title="Settings" class="icon-btn">⚙️</button>
       </div>
     </div>
   </div>
@@ -473,6 +474,18 @@
         <button id="picker-new-btn" class="btn btn-primary btn-sm">+ New Session</button>
       </div>
       <div id="picker-list" class="picker-list"></div>
+    </div>
+  </div>
+
+  <!-- Key Gate Overlay -->
+  <div id="key-gate" class="key-gate hidden">
+    <div class="key-card">
+      <h2>🔑 Connect DeepSeek</h2>
+      <p>DeepConsole needs your DeepSeek API key to run. Get one at
+         <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>.</p>
+      <input id="key-input" type="password" placeholder="sk-..." autocomplete="off" />
+      <p id="key-error" class="key-error hidden"></p>
+      <button id="key-save" class="key-save">Save &amp; Connect</button>
     </div>
   </div>
 

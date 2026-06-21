@@ -2016,3 +2016,30 @@ body {
   background: var(--accent, #6c5ce7);
   border: none;
 }
+
+/* ─── Key Gate Overlay ──────────────────────────────────────────────────────── */
+.key-gate {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(13,14,26,0.92);
+  display: flex; align-items: center; justify-content: center;
+}
+.key-gate.hidden { display: none; }
+.key-card {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px; width: 420px; max-width: 90vw;
+  box-shadow: var(--shadow);
+}
+.key-card h2 { margin: 0 0 8px; }
+.key-card p { color: var(--text-secondary); font-size: 14px; }
+.key-card input {
+  width: 100%; margin: 12px 0; padding: 10px 12px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-family: monospace;
+}
+.key-save {
+  width: 100%; padding: 11px; border: none; border-radius: var(--radius);
+  background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
+}
+.key-save:hover { background: var(--accent-hover); }
+.key-error { color: var(--error); font-size: 13px; }
+.key-error.hidden { display: none; }
