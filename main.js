@@ -54,14 +54,20 @@ async function ensureSharedService(name, port, spawnFn) {
   return spawnFn();
 }
 
+function backendEnv() {
+  const env = { ...process.env };
+  const key = keyStore && keyStore.resolveKey();
+  if (key) env.DEEPSEEK_API_KEY = key;
+  return env;
+}
+
 function startLLMServer() {
   const serverPath = path.resolve(__dirname, '..', 'abuddi');
   log(`[LLM] Starting from: ${serverPath}`);
-  log(`[LLM] PATH: ${process.env.PATH}`);
   try {
     llmProcess = require('child_process').spawn(
       'python', ['-m', 'uvicorn', 'server:app', '--host', '127.0.0.1', '--port', String(LLM_PORT)],
-      { cwd: serverPath, env: { ...process.env }, stdio: ['pipe', 'pipe', 'pipe'], shell: true }
+      { cwd: serverPath, env: backendEnv(), stdio: ['pipe', 'pipe', 'pipe'], shell: true }
     );
     llmProcess.stdout.on('data', (data) => { const text = data.toString().trim(); if (text) log(`[LLM] ${text}`); });
     llmProcess.stderr.on('data', (data) => { const text = data.toString().trim(); if (text) log(`[LLM] ${text}`); });
