@@ -849,10 +849,12 @@ app.whenReady().then(() => {
   }
   startBrowserApiServer();
   createMainWindow();
-  setTimeout(() => {
-    overmindRegisterAndHeartbeat();
-    overmindSubscribe();
-  }, 2500);
+  if (!app.isPackaged) {
+    setTimeout(() => {
+      overmindRegisterAndHeartbeat();
+      overmindSubscribe();
+    }, 2500);
+  }
   const pingServer = () => {
     const req = http.get(`http://127.0.0.1:${LLM_PORT}/health`, (res) => {
       console.log('[DeepConsole] LLM server (Abuddi) is ready');

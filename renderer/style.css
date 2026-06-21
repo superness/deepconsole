@@ -2043,3 +2043,5 @@ body {
 .key-save:hover { background: var(--accent-hover); }
 .key-error { color: var(--error); font-size: 13px; }
 .key-error.hidden { display: none; }
+.key-restart-notice { color: var(--success); font-size: 14px; font-weight: 600; margin-top: 12px; }
+.key-restart-notice.hidden { display: none; }

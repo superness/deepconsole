@@ -3027,10 +3027,13 @@ async function enforceKeyGate() {
       return;
     }
     await window.deepconsole.config.setKey(val);
-    gate.classList.add('hidden');
-    // The backend reads the key at spawn; if it was already up without a key,
-    // a full app restart applies it. Inform the user.
+    // Key saved — backend reads it only at spawn, so a restart is required.
+    // Keep the gate open and show a clear success + restart notice.
+    input.style.display = 'none';
+    save.style.display = 'none';
     err.classList.add('hidden');
+    const notice = document.getElementById('key-restart-notice');
+    notice.classList.remove('hidden');
   };
 
   document.getElementById('open-settings').onclick = async () => {
