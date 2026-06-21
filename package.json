@@ -1,16 +1,35 @@
 {
   "name": "deepconsole",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "DeepConsole - Local DeepSeek Chat with Integrated Browser Automation",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "test": "node --test"
+    "test": "node --test",
+    "dist": "electron-builder --win"
   },
   "author": "DeepConsole",
   "license": "MIT",
   "dependencies": {
     "electron": "^38.3.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.superness.deepconsole",
+    "productName": "DeepConsole",
+    "directories": { "output": "dist" },
+    "files": [
+      "main.js", "preload.js", "browser-preload.js",
+      "grimoire_ipc_block.js", "keystore.js",
+      "renderer/**/*", "package.json"
+    ],
+    "extraResources": [
+      { "from": "build/abuddi-backend.exe", "to": "abuddi-backend.exe" }
+    ],
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
   }
 }
