@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-instance & the Overmind — DeepConsole</title>
+  <meta name="description" content="Run a fleet of coordinating DeepConsole instances through the Overmind, with autonomous worker mode.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html"><span class="logo">🌀</span> DeepConsole</a>
+      <nav class="nav-links">
+        <a href="index.html">Quickstart</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="browser-automation.html">Browser</a>
+        <a href="overmind.html" class="active">Overmind</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a class="gh" href="https://github.com/superness/deepconsole">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h1>Multi-instance &amp; the Overmind</h1>
+      <p class="lead">DeepConsole can run as several independent instances — separate Electron processes, each with its own window, sessions, and AI-controlled browser — that are aware of one another through the <strong>Overmind</strong>.</p>
+
+      <h2>Shared backend, not killed</h2>
+      <p>Instances don't fight over ports. <code>main.js</code> <em>probe-then-spawns</em>: the first instance to launch starts the shared LLM backend (<code>8000</code>) and the Overmind (<code>9200</code>); the rest detect them via <code>/health</code> and attach. Each instance gets its own OS-assigned browser API port and a persisted arm identity (<code>arm.json</code> in Electron <code>userData</code>).</p>
+
+      <h2>The Overmind watches and creates space — it never directs</h2>
+      <p>The Overmind is a standalone passive coordinator on port <code>9200</code> (a FastAPI service). It holds:</p>
+      <div class="grid">
+        <div class="card"><h3>Presence roster</h3><p>A live list of which instances are up, what they're focused on, and their browser ports.</p></div>
+        <div class="card"><h3>Blackboard</h3><p>Self-organizing work items any idle instance can atomically <em>claim</em> — pull, not push. No assignment, no sequencing.</p></div>
+        <div class="card"><h3>Peer-asks</h3><p>Routes questions from one instance to another and returns the answer.</p></div>
+        <div class="card"><h3>The Ghost</h3><p>When a board item is marked done, records a learning into the shared knowledge base.</p></div>
+      </div>
+      <p>All changes fan out live over <code>GET /stream</code> (SSE) — no polling. The design rule: if a change ever turns the Overmind into an assigner or scheduler, that's a smell — initiative belongs in the instances.</p>
+
+      <h2>Autonomous worker mode</h2>
+      <p>Any instance can be flipped into <strong>Autonomous mode</strong> from the Overmind tab. A DOM-free state machine (<code>renderer/autonomous.js</code>, unit-tested via <code>npm test</code>) then watches the live board feed and, while idle:</p>
+      <ol class="steps">
+        <li>Atomically <strong>claims one open item</strong> at a time.</li>
+        <li>Runs it to completion in the instance's visible chat (the full abuddi agent).</li>
+        <li>Marks the item <strong>Done</strong> with a summarized result — so the Ghost records a learning.</li>
+        <li><strong>Releases</strong> it on failure.</li>
+      </ol>
+      <p>One job at a time (a single in-flight guard); disabling mid-job finishes the current job, then stops. A worker only ever takes work it claims — nothing is pushed to it, preserving the Overmind's pull-not-push contract.</p>
+
+      <h2>Running a fleet</h2>
+      <p>The <strong>Fleet Manager</strong> (<code>fleet_manager.pyw</code>) is a small native GUI to launch, monitor, and stop instances: launch N arms each with its own Electron profile and workspace, see the live roster, watch backend/Overmind health, and read the board summary (open / claimed / done).</p>
+
+      <div class="callout">
+        <p class="label">Testing</p>
+        <p>The Overmind has its own test suite under <code>overmind/tests/</code>, and the autonomous state machine is tested with <code>npm test</code> (<code>node --test</code>).</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>DeepConsole · MIT License</span>
+    <span><a href="https://github.com/superness/deepconsole">deepconsole</a> · <a href="https://github.com/superness/abuddi">abuddi</a></span>
+  </footer>
+</body>
+</html>

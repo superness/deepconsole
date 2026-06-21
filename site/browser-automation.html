@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browser Automation — DeepConsole</title>
+  <meta name="description" content="How DeepConsole's AI controls a real browser window, and the HTTP API behind it.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html"><span class="logo">🌀</span> DeepConsole</a>
+      <nav class="nav-links">
+        <a href="index.html">Quickstart</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="browser-automation.html" class="active">Browser</a>
+        <a href="overmind.html">Overmind</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a class="gh" href="https://github.com/superness/deepconsole">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h1>Browser Automation</h1>
+      <p class="lead">The AI drives a real Electron browser window. It can open pages, navigate, run arbitrary JavaScript in the page context, and read back results and console output.</p>
+
+      <h2>What the AI can do</h2>
+      <ol class="steps">
+        <li><strong>Open a browser</strong> — a separate Electron window dedicated to AI-driven automation (kept apart from the in-app webview tab to avoid visual clutter).</li>
+        <li><strong>Navigate to URLs</strong> — load any address.</li>
+        <li><strong>Execute JavaScript</strong> — run arbitrary JS in the page context and get the result back.</li>
+        <li><strong>Read console logs</strong> — retrieve console output captured from the page.</li>
+        <li><strong>Save files</strong> — dialog-based file saving.</li>
+      </ol>
+
+      <h2>The Browser API server</h2>
+      <p>Browser control is a plain HTTP server run by the Electron main process, so <strong>any</strong> process can drive it — not just the LLM backend. The port is <strong>OS-assigned per instance</strong> (so multiple instances don't collide) and registered with the Overmind; read an instance's <code>browser_port</code> from <code>GET http://127.0.0.1:9200/arms</code>.</p>
+
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+        <tr><td>POST</td><td><code>/browser/open</code></td><td>Open the AI browser window</td></tr>
+        <tr><td>POST</td><td><code>/browser/navigate</code></td><td>Navigate to <code>{url}</code></td></tr>
+        <tr><td>POST</td><td><code>/browser/execute</code></td><td>Run <code>{code}</code> in the page; returns <code>result</code></td></tr>
+        <tr><td>GET</td><td><code>/browser/url</code></td><td>Current URL</td></tr>
+        <tr><td>GET</td><td><code>/browser/logs</code></td><td>Captured console log buffer</td></tr>
+        <tr><td>POST</td><td><code>/browser/logs/clear</code></td><td>Clear the log buffer</td></tr>
+      </table>
+
+      <p>The console log buffer is populated by <code>browser-preload.js</code>, which intercepts <code>console.*</code> in the browser window and forwards entries to the main process.</p>
+
+      <h2>Scripting it directly</h2>
+      <p>Because the API is just HTTP, you can script the live browser from any tool while the app is running — for example with Python's <code>urllib</code>:</p>
+<pre>import json, urllib.request
+
+PORT = 0  # read from GET http://127.0.0.1:9200/arms -> browser_port
+
+def post(path, body):
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{PORT}{path}",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    return json.load(urllib.request.urlopen(req))
+
+post("/browser/open", {})
+post("/browser/navigate", {"url": "https://example.com"})
+print(post("/browser/execute", {"code": "document.title"}))</pre>
+
+      <div class="callout warn">
+        <p class="label">Heads up</p>
+        <p><code>/browser/execute</code> runs <strong>arbitrary JavaScript</strong> in the page context. Only point it at pages and code you trust.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>DeepConsole · MIT License</span>
+    <span><a href="https://github.com/superness/deepconsole">deepconsole</a> · <a href="https://github.com/superness/abuddi">abuddi</a></span>
+  </footer>
+</body>
+</html>

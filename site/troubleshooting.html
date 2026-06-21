@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Troubleshooting — DeepConsole</title>
+  <meta name="description" content="Fixes for common DeepConsole setup issues: backend won't start, port conflicts, missing API key, Python deps.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html"><span class="logo">🌀</span> DeepConsole</a>
+      <nav class="nav-links">
+        <a href="index.html">Quickstart</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="browser-automation.html">Browser</a>
+        <a href="overmind.html">Overmind</a>
+        <a href="troubleshooting.html" class="active">Troubleshooting</a>
+        <a class="gh" href="https://github.com/superness/deepconsole">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h1>Troubleshooting</h1>
+      <p class="lead">The app pings <code>http://127.0.0.1:8000/health</code> on startup until the backend responds. Most setup issues are the backend not coming up — start there.</p>
+
+      <h2>The app hangs on "waiting for backend"</h2>
+      <p>The Electron UI is up but the abuddi backend on port <code>8000</code> never reported healthy. Check, in order:</p>
+      <ul>
+        <li><strong>Is <code>abuddi</code> a sibling of <code>deepconsole</code>?</strong> The app spawns the backend from <code>../abuddi</code>. Both repos must share a parent folder.</li>
+        <li><strong>Are the Python deps installed?</strong> <code>cd abuddi &amp;&amp; pip install -r requirements.txt</code>.</li>
+        <li><strong>Does the backend start on its own?</strong> Run it manually to see the real error:
+<pre>cd abuddi
+python -m uvicorn server:app --host 127.0.0.1 --port 8000</pre></li>
+        <li><strong>Run the app with DevTools</strong> — <code>npm run dev</code> — and check the logs for <code>[LLM]</code> lines from the spawned backend.</li>
+      </ul>
+
+      <h2>"DEEPSEEK_API_KEY not configured" / 500 on chat</h2>
+      <p>The backend started but has no key. Create <code>abuddi/.env</code> with:</p>
+<pre>DEEPSEEK_API_KEY=sk-your-key-here</pre>
+      <p>Get a key from <a href="https://platform.deepseek.com">platform.deepseek.com</a>, then restart the app. A <code>401</code> from DeepSeek instead means the key is present but invalid or out of credit.</p>
+
+      <h2>Port 8000 already in use</h2>
+      <p>This is usually fine: DeepConsole <em>probe-then-spawns</em>, so a second instance detects the backend already running on <code>8000</code> and attaches to it rather than starting its own. If a <strong>different</strong> program holds <code>8000</code>, stop it (or change the backend port) so the health check can succeed.</p>
+
+      <h2>The backend restarts don't pick up code changes</h2>
+      <p>The port-8000 uvicorn process runs without <code>--reload</code>. After editing backend <code>.py</code> files, fully restart the process (or the app) for changes to take effect.</p>
+
+      <h2><code>npm install</code> or Electron fails to launch</h2>
+      <ul>
+        <li>Make sure you're on <strong>Node 18+</strong> (tested with v24): <code>node -v</code>.</li>
+        <li>Delete <code>node_modules</code> and reinstall if a partial install left it inconsistent.</li>
+        <li>On Linux, Electron needs the usual desktop libraries (e.g. <code>libgtk</code>, <code>libnss3</code>) present.</li>
+      </ul>
+
+      <h2>Multi-instance: the Overmind tab is empty</h2>
+      <p>The Overmind runs on port <code>9200</code>, started by the first instance to launch. Confirm it's up:</p>
+<pre>curl http://127.0.0.1:9200/health
+curl http://127.0.0.1:9200/arms</pre>
+      <p>If nothing answers, no instance has started it yet — launch one, or check that <code>9200</code> isn't blocked by another process.</p>
+
+      <div class="callout">
+        <p class="label">Still stuck?</p>
+        <p>Open an issue on <a href="https://github.com/superness/deepconsole/issues">GitHub</a> with the <code>[LLM]</code> log output from <code>npm run dev</code> and your Node / Python versions.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>DeepConsole · MIT License</span>
+    <span><a href="https://github.com/superness/deepconsole">deepconsole</a> · <a href="https://github.com/superness/abuddi">abuddi</a></span>
+  </footer>
+</body>
+</html>

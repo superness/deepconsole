@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture — DeepConsole</title>
+  <meta name="description" content="DeepConsole's process model, internal servers, chat data flow, and the DeepSeek-V4 backend.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html"><span class="logo">🌀</span> DeepConsole</a>
+      <nav class="nav-links">
+        <a href="index.html">Quickstart</a>
+        <a href="architecture.html" class="active">Architecture</a>
+        <a href="browser-automation.html">Browser</a>
+        <a href="overmind.html">Overmind</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a class="gh" href="https://github.com/superness/deepconsole">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h1>Architecture</h1>
+      <p class="lead">DeepConsole is an Electron app that wraps a chat UI to DeepSeek with an integrated browser the AI can automate. It talks to a sibling backend, <a href="https://github.com/superness/abuddi"><code>abuddi</code></a>, over local HTTP.</p>
+
+      <h2>Process model</h2>
+      <h3>Main process — <code>main.js</code></h3>
+      <p>Manages windows and IPC, and runs two internal HTTP servers:</p>
+      <ul>
+        <li>Spawns <code>../abuddi/server.py</code> via uvicorn on port <code>8000</code> — the LLM backend.</li>
+        <li>Runs a <strong>Browser API server</strong> on an OS-assigned port that the backend calls to control the Electron browser window (open, navigate, execute JS, read console logs).</li>
+      </ul>
+
+      <h3>Renderer process — <code>renderer/</code></h3>
+      <p>All UI logic — chat, session management, streaming SSE events, and the tabs: Browser, Console, JS Runner, Agents, Memory, and Overmind. Lives in <code>app.js</code>, <code>index.html</code>, and <code>style.css</code>.</p>
+
+      <h3>Preloads</h3>
+      <ul>
+        <li><code>preload.js</code> — context bridge for the main window; exposes <code>window.deepconsole.*</code> (<code>llm</code>, <code>agents</code>, <code>abuddi</code>, <code>maestro</code>, <code>memory</code>, <code>browser</code>, <code>overmind</code>).</li>
+        <li><code>browser-preload.js</code> — context bridge for the AI-controlled browser window; intercepts <code>console.*</code> and forwards entries to the main process buffer.</li>
+      </ul>
+
+      <h2>Data flow for chat</h2>
+      <ol class="steps">
+        <li>Renderer calls <code>window.deepconsole.llm.chat(sessionId, message)</code> via IPC.</li>
+        <li>Main process streams Server-Sent Events from <code>http://127.0.0.1:8000/sessions/{id}/chat</code>.</li>
+        <li>SSE events — <code>token</code>, <code>tool_call</code>, <code>tool_result</code>, <code>ask</code>, <code>done</code>, <code>error</code> — are forwarded to the renderer.</li>
+        <li>The renderer handles each event type to render streamed text, tool activity, and interactive questions.</li>
+      </ol>
+
+      <h2>The DeepSeek-V4 backend</h2>
+      <p>The backend uses DeepSeek <strong>V4</strong>, and the model is <strong>computed per turn</strong> — there is no manual picker. A cheap non-thinking <strong>ABUDDI triage</strong> pass classifies each turn and emits a <code>complexity_score</code> and a <code>CODE_WORK</code> flag. The work pass then picks:</p>
+      <table>
+        <tr><th>Dimension</th><th>Rule</th></tr>
+        <tr><td>Model</td><td><code>deepseek-v4-pro</code> for code work, else <code>deepseek-v4-flash</code></td></tr>
+        <tr><td>Thinking</td><td>enabled (effort <code>high</code>, or <code>max</code> when score ≥ 30) once <code>score ≥ 12</code>; routine turns stay non-thinking</td></tr>
+      </table>
+      <p><code>reasoning_content</code> is captured and threaded through history so thinking-mode tool-call loops stay valid.</p>
+
+      <h2>Shared working memory</h2>
+      <p>A unified <strong>3-tier</strong> memory system, backed by JSON files in <code>../abuddi/memory_store/</code>:</p>
+      <table>
+        <tr><th>Tier</th><th>Scope</th><th>Persistence</th></tr>
+        <tr><td><strong>Session</strong></td><td>a single conversation</td><td>ephemeral (deleted with the session)</td></tr>
+        <tr><td><strong>Agent</strong></td><td>per agent "hat", across sessions</td><td>persistent</td></tr>
+        <tr><td><strong>Meta</strong></td><td>global — all sessions &amp; agents</td><td>persistent</td></tr>
+      </table>
+      <p>The backend exposes REST endpoints at <code>/memory/{tier}/{namespace}/...</code>, the AI has direct <code>memory_*</code> tools, and before every turn the current session + meta memory are injected into the system prompt as live shared state.</p>
+
+      <h3>Knowledge base</h3>
+      <p>Separate from working memory, a file-based knowledge store holds facts, learnings, and questions the AI curates via <code>knowledge_*</code> tools. It is also injected into every system prompt. Think of it as long-term agent memory, while working memory is the shared 3-tier state machine.</p>
+
+      <div class="callout">
+        <p class="label">Ports</p>
+        <p><code>8000</code> — the shared abuddi backend. <code>9200</code> — the Overmind cross-instance coordinator. The Browser API port is OS-assigned per instance.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>DeepConsole · MIT License</span>
+    <span><a href="https://github.com/superness/deepconsole">deepconsole</a> · <a href="https://github.com/superness/abuddi">abuddi</a></span>
+  </footer>
+</body>
+</html>

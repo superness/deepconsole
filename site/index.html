@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepConsole — Local DeepSeek chat with an AI-driven browser</title>
+  <meta name="description" content="DeepConsole is an Electron desktop app: a local chat interface to DeepSeek with a fully integrated browser the AI can automate.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html"><span class="logo">🌀</span> DeepConsole</a>
+      <nav class="nav-links">
+        <a href="index.html" class="active">Quickstart</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="browser-automation.html">Browser</a>
+        <a href="overmind.html">Overmind</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a class="gh" href="https://github.com/superness/deepconsole">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>🌀 DeepConsole</h1>
+      <p class="tagline">An Electron desktop app: a local chat interface to <strong>DeepSeek</strong> with a fully integrated browser the AI can open, navigate, and automate.</p>
+      <div class="btn-row">
+        <a class="btn primary" href="#quickstart">Get started</a>
+        <a class="btn ghost" href="https://github.com/superness/deepconsole/releases/latest">Download v1.0.0</a>
+        <a class="btn ghost" href="https://github.com/superness/deepconsole">View on GitHub</a>
+      </div>
+
+      <div class="mockup" aria-hidden="true">
+        <div class="titlebar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="t">DeepConsole — Chat</span>
+        </div>
+        <div class="body">
+          <div class="side">
+            <div class="item on">💬 Chat</div>
+            <div class="item">🌐 Browser</div>
+            <div class="item">📋 Console</div>
+            <div class="item">💻 JS Runner</div>
+            <div class="item">🧠 Memory</div>
+          </div>
+          <div class="chat">
+            <div class="bubble user">Open Hacker News and tell me the top story.</div>
+            <div class="toolchip">🔧 browser.navigate → news.ycombinator.com</div>
+            <div class="toolchip">🔧 browser.execute → read top row</div>
+            <div class="bubble ai">The top story right now is “Show HN: …”. Want me to open the comments?</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <h2>What it does</h2>
+      <div class="grid">
+        <div class="card"><h3>💬 Chat with DeepSeek</h3><p>Streaming responses with markdown rendering, tool calls, and interactive questions.</p></div>
+        <div class="card"><h3>🌐 AI-driven browser</h3><p>The AI opens a real browser window, navigates, runs JavaScript, and reads the page and console.</p></div>
+        <div class="card"><h3>🧠 Shared memory</h3><p>A 3-tier working-memory system plus a curated knowledge base, injected into every turn.</p></div>
+        <div class="card"><h3>🕸 Multi-instance</h3><p>Run several instances that coordinate through the Overmind, with an optional autonomous worker mode.</p></div>
+      </div>
+    </section>
+
+    <section id="quickstart">
+      <h2>Quickstart</h2>
+      <p>DeepConsole is the UI; it runs against a sibling backend called <a href="https://github.com/superness/abuddi"><code>abuddi</code></a> (a DeepSeek-backed agent server). You clone both side by side.</p>
+
+      <h3>Prerequisites</h3>
+      <ul>
+        <li><strong>Node.js 18+</strong> (tested with v24)</li>
+        <li><strong>Python 3.10+</strong></li>
+        <li>A <strong>DeepSeek API key</strong> — from <a href="https://platform.deepseek.com">platform.deepseek.com</a></li>
+      </ul>
+
+      <h3>Setup</h3>
+      <ol class="steps">
+        <li><strong>Clone both repos as siblings</strong> (same parent folder):
+<pre>git clone https://github.com/superness/deepconsole.git
+git clone https://github.com/superness/abuddi.git</pre></li>
+        <li><strong>Install the backend's Python dependencies</strong>:
+<pre>cd abuddi
+pip install -r requirements.txt</pre></li>
+        <li><strong>Add your DeepSeek key</strong> — create <code>abuddi/.env</code>:
+<pre>DEEPSEEK_API_KEY=sk-your-key-here</pre></li>
+        <li><strong>Install and launch the app</strong>:
+<pre>cd ../deepconsole
+npm install
+npm start</pre></li>
+        <li><strong>That's it.</strong> <code>npm start</code> launches Electron, which spawns the abuddi backend on port <code>8000</code> and waits for it to report healthy. When the app shows ready, start chatting.</li>
+      </ol>
+
+      <div class="callout">
+        <p class="label">Folder layout</p>
+        <p>After cloning, your parent folder should contain <code>deepconsole/</code> and <code>abuddi/</code> next to each other. The app looks for the backend at <code>../abuddi</code> relative to itself.</p>
+      </div>
+
+      <p>Hitting a snag? See <a href="troubleshooting.html">Troubleshooting</a>. Run <code>npm run dev</code> instead of <code>npm start</code> to open with DevTools.</p>
+    </section>
+
+    <section>
+      <h2>Where to next</h2>
+      <div class="grid">
+        <div class="card"><h3><a href="architecture.html">Architecture →</a></h3><p>Process model, the two internal servers, chat data flow, and the DeepSeek-V4 backend.</p></div>
+        <div class="card"><h3><a href="browser-automation.html">Browser automation →</a></h3><p>How the AI controls the browser and the HTTP API behind it.</p></div>
+        <div class="card"><h3><a href="overmind.html">Multi-instance & Overmind →</a></h3><p>Running a fleet of coordinating instances and autonomous worker mode.</p></div>
+        <div class="card"><h3><a href="troubleshooting.html">Troubleshooting →</a></h3><p>Backend won't start, port conflicts, missing key, Python deps.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>DeepConsole · MIT License</span>
+    <span><a href="https://github.com/superness/deepconsole">deepconsole</a> · <a href="https://github.com/superness/abuddi">abuddi</a></span>
+  </footer>
+</body>
+</html>

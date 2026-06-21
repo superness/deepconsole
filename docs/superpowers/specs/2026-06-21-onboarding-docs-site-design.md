@@ -42,8 +42,9 @@ each sharing one stylesheet (`site/assets/style.css`) and an inline header nav.
 | Multi-instance & Overmind | `site/overmind.html` | CLAUDE.md "Multi-instance & the Overmind" + autonomous worker mode |
 | Troubleshooting | `site/troubleshooting.html` | New: backend won't start, port conflicts, missing key, Python deps |
 
-Assets: `site/assets/style.css`, `site/assets/screenshot.png` (copied from
-`C:\github\screenshot.png` after confirming it shows the app UI).
+Assets: `site/assets/style.css`. No real app screenshot existed (the root
+`screenshot.png` was a different project), so the hero uses a themed CSS/HTML
+mockup of the chat UI instead of a raster image.
 
 ### Theme
 
