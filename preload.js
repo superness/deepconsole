@@ -149,6 +149,13 @@ contextBridge.exposeInMainWorld('deepconsole', {
     },
   },
 
+  // ─── Key Store Config API ────────────────────────────────────────────
+  config: {
+    getKeyStatus: () => ipcRenderer.invoke('config:getKeyStatus'),
+    setKey: (key) => ipcRenderer.invoke('config:setKey', key),
+    clearKey: () => ipcRenderer.invoke('config:clearKey'),
+  },
+
   // ─── Webview Control (internal) ──
   _webview: {
     onExecuteJS: (callback) => {

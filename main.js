@@ -1,7 +1,19 @@
-﻿const { app, BrowserWindow, ipcMain, session, dialog, Menu, clipboard } = require('electron');
+﻿const { app, BrowserWindow, ipcMain, session, dialog, Menu, clipboard, safeStorage } = require('electron');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
+const { makeKeyStore } = require('./keystore');
+
+let keyStore; // initialized in app.whenReady (needs app.getPath)
+function initKeyStore() {
+  keyStore = makeKeyStore({
+    configPath: path.join(app.getPath('userData'), 'deepconsole-config.json'),
+    encrypt: (s) => safeStorage.encryptString(s),
+    decrypt: (b) => safeStorage.decryptString(b),
+    isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+    env: process.env,
+  });
+}
 
 // ─── File logger ──────────────────────────────────────────────────────────
 const LOG_FILE = path.join(require('os').homedir(), 'deepconsole.log');
@@ -707,6 +719,17 @@ ipcMain.handle('overmind:setStatus', async (_e, { status, focus }) => {
   return overmindRequest('POST', `/arms/${armIdentity.id}/heartbeat`, { status: overmindStatus, focus: overmindFocus });
 });
 
+// Config / Key Store
+ipcMain.handle('config:getKeyStatus', () => keyStore.getKeyStatus());
+ipcMain.handle('config:setKey', (_e, key) => {
+  keyStore.setKey(String(key || '').trim());
+  return keyStore.getKeyStatus();
+});
+ipcMain.handle('config:clearKey', () => {
+  keyStore.clearKey();
+  return keyStore.getKeyStatus();
+});
+
 // Dialog
 ipcMain.handle('dialog:saveFile', async (event, { defaultName, content }) => {
   const result = await dialog.showSaveDialog(mainWindow, { defaultPath: defaultName || 'output.txt', filters: [{ name: 'All Files', extensions: ['*'] }] });
@@ -795,6 +818,7 @@ Diagnose and fix it. Do not ask for permission.`;
 
 // ─── App Lifecycle ──────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  initKeyStore();
   loadArmIdentity(); // populate armIdentity now so Overmind IPC handlers never deref null
   ensureSharedService('LLM', LLM_PORT, startLLMServer);
   ensureSharedService('Overmind', OVERMIND_PORT, startOvermind);
