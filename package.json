@@ -1,0 +1,16 @@
+{
+  "name": "deepconsole",
+  "version": "1.0.0",
+  "description": "DeepConsole - Local DeepSeek Chat with Integrated Browser Automation",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node --test"
+  },
+  "author": "DeepConsole",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^38.3.0"
+  }
+}

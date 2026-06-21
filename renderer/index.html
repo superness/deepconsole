@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepConsole</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Title Bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <span class="logo">⟁</span>
+      <span class="title-text">DeepConsole</span>
+    </div>
+    <div class="titlebar-status">
+      <span id="status-indicator" class="status-dot offline"></span>
+      <span id="status-text" class="status-text">Connecting...</span>
+      <div class="titlebar-actions">
+        <button id="memory-panel-toggle" class="icon-btn" title="Working Memory">🧠</button>
+        <button id="agent-panel-toggle" class="icon-btn" title="Agent Command Center">🤖</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="app-container">
+    <!-- Left: Chat Panel -->
+    <div class="chat-panel">
+      <div class="chat-messages" id="chat-messages">
+        <div class="message welcome">
+          <div class="message-content">
+            <div class="message-avatar ai">⟁</div>
+            <div class="message-bubble">
+              <p>Hello! I'm <strong>DeepConsole</strong> — DeepSeek with a browser and <strong>3-tier shared working memory</strong>.</p>
+              <p>I can:</p>
+              <ul>
+                <li>💬 Chat with you using DeepSeek</li>
+                <li>🌐 Open and browse websites</li>
+                <li>🔍 Execute JavaScript in the browser</li>
+                <li>📊 View console logs in real-time</li>
+                <li>📝 Save files to your machine</li>
+                <li>🤖 Orchestrate work via Maestro agents</li>
+                <li>🧠 <strong>Remember things</strong> across sessions & agents</li>
+              </ul>
+              <p><strong>🧠 Working Memory Tiers:</strong></p>
+              <ul>
+                <li><strong>Session</strong> — remembers things during this chat (ephemeral)</li>
+                <li><strong>Agent</strong> — remembers across sessions for a given agent hat</li>
+                <li><strong>Meta</strong> — remembers globally across all of DeepConsole</li>
+              </ul>
+              <p>Just ask me to do something! For example: <em>"Open google.com"</em>, or <em>"Remember my name is Alice"</em>, or check <strong>🧠 Memory tab</strong> to view stored data.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dr. Claude Panel -->
+      <div id="doctor-panel" style="display:none;">
+        <div class="doctor-header">
+          <span class="doctor-icon">🩺</span>
+          <span class="doctor-title">Dr. Claude is diagnosing...</span>
+          <button id="doctor-close" class="doctor-close-btn">✕</button>
+        </div>
+        <div id="doctor-body" class="doctor-body"></div>
+      </div>
+
+      <!-- Agent Controls -->
+      <div class="agent-controls" id="agent-controls" style="display:none;">
+        <div class="tool-call" id="current-tool">
+          <span class="tool-name">🔧 Using tool</span>
+        </div>
+        <div class="ask-user-panel" id="ask-panel" style="display:none;">
+          <div class="ask-question" id="ask-question"></div>
+          <div class="ask-input-row">
+            <input type="text" id="ask-input" placeholder="Type your answer..." />
+            <button id="ask-submit" class="btn btn-primary">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-area">
+        <div class="input-row">
+          <input type="text" id="message-input" placeholder="Ask me to do something..." />
+          <button id="send-btn" class="btn btn-primary">Send</button>
+          <button id="stop-btn" class="btn btn-danger" style="display:none;">⬛ Stop</button>
+          <button id="new-chat-btn" class="btn btn-secondary" title="New Chat">+</button>
+        </div>
+        <div class="input-hints">
+          <button class="hint-btn" data-hint="Open a browser">🌐 Browser</button>
+          <button class="hint-btn" data-hint="Run JavaScript in browser">💻 Run JS</button>
+          <button class="hint-btn" data-hint="Check console logs">📋 Console</button>
+          <button class="hint-btn" data-hint="Use ABUDDI to score">📊 Score with ABUDDI</button>
+          <button class="hint-btn" data-hint="Remember something">🧠 Remember</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Multi-panel (Browser + Agents + Memory + Grimoires) -->
+    <div class="browser-panel">
+      <div class="browser-tabs">
+        <button id="browser-tab" class="tab active">🌐 Browser</button>
+        <button id="console-tab" class="tab">📋 Console</button>
+        <button id="js-tab" class="tab">💻 JS Runner</button>
+        <button id="agents-tab" class="tab">🤖 Agents</button>
+        <button id="memory-tab" class="tab">🧠 Memory</button>
+        <button id="grimoires-tab" class="tab">📖 Grimoires</button>
+        <button id="brainworms-tab" class="tab">🐛 Worms</button>
+        <button id="gitworkflow-tab" class="tab">🔄 Git</button>
+        <button id="overmind-tab" class="tab">Overmind</button>
+      </div>
+
+      <!-- Browser View -->
+      <div id="browser-view" class="browser-view active">
+        <div class="browser-toolbar">
+          <button id="browser-back" class="toolbar-btn" title="Back">◀</button>
+          <button id="browser-forward" class="toolbar-btn" title="Forward">▶</button>
+          <button id="browser-refresh" class="toolbar-btn" title="Refresh">⟳</button>
+          <input type="text" id="browser-url" placeholder="Enter URL..." value="about:blank" />
+          <button id="browser-go" class="btn btn-primary btn-sm">Go</button>
+          <button id="browser-open-btn" class="btn btn-secondary btn-sm">Open</button>
+        </div>
+        <div class="browser-viewport">
+          <webview id="browser-webview" src="about:blank" style="width:100%;height:100%;" allowpopups></webview>
+        </div>
+      </div>
+
+      <!-- Console View -->
+      <div id="console-view" class="browser-view">
+        <div class="console-toolbar">
+          <span class="console-title">Console Logs</span>
+          <div class="console-actions">
+            <button id="console-clear" class="toolbar-btn" title="Clear">🗑️</button>
+            <button id="console-refresh" class="toolbar-btn" title="Refresh">⟳</button>
+          </div>
+        </div>
+        <div class="console-output" id="console-output">
+          <div class="console-info">Console logs will appear here as they happen.</div>
+        </div>
+      </div>
+
+      <!-- JS Runner -->
+      <div id="js-view" class="browser-view">
+        <div class="js-toolbar">
+          <span class="console-title">JavaScript Runner</span>
+        </div>
+        <textarea id="js-code" class="js-editor" placeholder="// Enter JavaScript to execute in the browser&#10;document.title = 'Hello from DeepConsole';&#10;document.body.style.backgroundColor = '#1a1b2e';">document.title = 'DeepConsole Browser'; console.log('DeepConsole connected!');</textarea>
+        <div class="js-actions">
+          <button id="js-run" class="btn btn-primary btn-sm">▶ Run</button>
+          <button id="js-clear" class="btn btn-secondary btn-sm">Clear Output</button>
+        </div>
+        <div class="js-output" id="js-output">
+          <div class="console-info">Output will appear here.</div>
+        </div>
+      </div>
+
+      <!-- Agent Command Center -->
+      <div id="agents-view" class="browser-view">
+        <div class="agents-toolbar">
+          <span class="console-title">🤖 Agent Command Center</span>
+          <div class="agents-actions">
+            <button id="agents-refresh" class="toolbar-btn" title="Refresh Agents">⟳</button>
+            <button id="agents-open-hats" class="toolbar-btn" title="Open Agent Files">📁</button>
+          </div>
+        </div>
+
+        <!-- Agent List -->
+        <div class="agents-list" id="agents-list">
+          <div class="agents-loading">Loading agents...</div>
+        </div>
+
+        <!-- Agent Detail Panel -->
+        <div class="agent-detail" id="agent-detail" style="display:none;">
+          <div class="agent-detail-header">
+            <button id="agent-detail-back" class="toolbar-btn" title="Back">← Back</button>
+            <span class="agent-detail-name" id="agent-detail-name"></span>
+          </div>
+          <div class="agent-detail-content" id="agent-detail-content"></div>
+        </div>
+
+        <!-- ABUDDI Scorer -->
+        <div class="abuddi-section">
+          <div class="abuddi-header">
+            <span class="console-title">📊 ABUDDI Complexity Scorer</span>
+          </div>
+          <textarea id="abuddi-input" class="abuddi-input" placeholder="Describe a task to score its complexity...&#10;e.g. 'Add dark mode toggle to settings page'"></textarea>
+          <div class="abuddi-actions">
+            <button id="abuddi-score-btn" class="btn btn-primary btn-sm">Score Task</button>
+          </div>
+          <div class="abuddi-result" id="abuddi-result">
+            <div class="console-info">Score a task to see ABUDDI breakdown.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Memory View -->
+      <div id="memory-view" class="browser-view">
+        <div class="memory-toolbar">
+          <span class="console-title">🧠 Working Memory</span>
+          <div class="memory-actions">
+            <button id="memory-refresh" class="toolbar-btn" title="Refresh Memory">⟳</button>
+            <button id="memory-clear-current" class="toolbar-btn" title="Clear Current View">🗑️</button>
+          </div>
+        </div>
+
+        <!-- Memory Tier Selector -->
+        <div class="memory-tier-selector">
+          <button id="memory-tier-session" class="memory-tier-btn active" data-tier="session">Session</button>
+          <button id="memory-tier-agent" class="memory-tier-btn" data-tier="agent">Agent</button>
+          <button id="memory-tier-meta" class="memory-tier-btn" data-tier="meta">Meta</button>
+          <select id="memory-namespace-select" class="memory-namespace-select"></select>
+        </div>
+
+        <!-- Memory Key/Value Editor -->
+        <div class="memory-editor-row">
+          <input type="text" id="memory-key-input" placeholder="Key..." class="memory-key-input" />
+          <input type="text" id="memory-value-input" placeholder='Value (JSON or text)...' class="memory-value-input" />
+          <button id="memory-set-btn" class="btn btn-primary btn-sm">Set</button>
+          <button id="memory-append-btn" class="btn btn-secondary btn-sm">Append</button>
+          <button id="memory-delete-btn" class="btn btn-danger btn-sm">Delete</button>
+        </div>
+
+        <!-- Memory Exploration Controls -->
+        <div class="memory-explore-bar">
+          <!-- View mode toggle -->
+          <div class="mem-view-toggle">
+            <button id="mem-view-flat" class="mem-view-btn active" title="Flat view">📋</button>
+            <button id="mem-view-grouped" class="mem-view-btn" title="Grouped by key prefix">📁</button>
+          </div>
+          <!-- Sort -->
+          <select id="mem-sort-select" class="mem-sort-select" title="Sort order">
+            <option value="alpha">A→Z</option>
+            <option value="alpha-desc">Z→A</option>
+            <option value="type">By Type</option>
+            <option value="keylen">Key Length</option>
+          </select>
+          <!-- Type filter -->
+          <div class="mem-type-filters" id="mem-type-filters">
+            <button class="mem-type-btn active" data-type="str">str</button>
+            <button class="mem-type-btn active" data-type="num">num</button>
+            <button class="mem-type-btn active" data-type="bool">bool</button>
+            <button class="mem-type-btn active" data-type="arr">arr</button>
+            <button class="mem-type-btn active" data-type="obj">obj</button>
+            <button class="mem-type-btn active" data-type="null">nil</button>
+          </div>
+          <!-- Expand/collapse all (only visible in grouped mode) -->
+          <button id="mem-expand-all" class="mem-expand-btn" style="display:none;" title="Expand all groups">⊞</button>
+          <button id="mem-collapse-all" class="mem-expand-btn" style="display:none;" title="Collapse all groups">⊟</button>
+          <!-- Stats badge -->
+          <span id="mem-stats-badge" class="mem-stats-badge"></span>
+        </div>
+
+        <!-- Memory Search -->
+        <div class="memory-search-row">
+          <input type="text" id="memory-search-input" placeholder="Search memory keys & values..." class="memory-search-input" />
+          <button id="memory-search-btn" class="btn btn-secondary btn-sm">Search</button>
+          <button id="memory-search-clear" class="btn btn-danger btn-sm" style="display:none;">✕</button>
+          <span id="memory-stats" class="memory-stats"></span>
+        </div>
+
+        <!-- Memory Content -->
+        <div class="memory-content" id="memory-content">
+          <div class="console-info">Select a tier and namespace to view memory contents.</div>
+        </div>
+      </div>
+
+      <!-- Grimoires View -->
+      <div id="grimoires-view" class="browser-view">
+        <div class="grimoires-toolbar">
+          <span class="console-title">📖 Grimoires</span>
+          <div class="grimoires-actions">
+            <button id="grimoires-refresh" class="toolbar-btn" title="Refresh Grimoires">⟳</button>
+            <button id="grimoires-open-dir" class="toolbar-btn" title="Open Grimoires Directory">📁</button>
+          </div>
+        </div>
+
+        <!-- Endowed Grimoires Section -->
+        <div id="grimoires-endowed-section" class="grimoires-endowed-section" style="display:none;">
+          <div class="grimoires-endowed-header">
+            <span class="grimoires-section-title">Endowed Grimoires</span>
+          </div>
+          <div id="grimoires-endowed-list" class="grimoires-endowed-list"></div>
+        </div>
+
+        <!-- Grimoire List -->
+        <div class="grimoires-list" id="grimoires-list">
+          <div class="grimoires-loading">Loading grimoires...</div>
+        </div>
+      </div>
+
+      <!-- Brain Worms View -->
+      <div id="brainworms-view" class="browser-view">
+        <div class="grimoires-toolbar">
+          <span class="console-title">🐛 Brain Worms</span>
+          <div class="grimoires-actions">
+            <button id="brainworms-refresh" class="toolbar-btn" title="Refresh Sightings">⟳</button>
+            <button id="brainworms-burrow-btn" class="toolbar-btn" title="Trigger Burrow Now">🕳️</button>
+            <button id="brainworms-clear" class="toolbar-btn" title="Clear Sightings">🗑️</button>
+          </div>
+        </div>
+
+        <!-- Worm Status Bar -->
+        <div class="brainworms-status-bar" id="brainworms-status-bar">
+          <span id="brainworms-status-text">Loading worm status...</span>
+        </div>
+
+        <!-- Worm Config Toggles -->
+        <div class="brainworms-config" id="brainworms-config">
+          <label class="brainworms-worm-toggle">
+            <input type="checkbox" id="worm-toggle-reminder" data-worm="reminder" checked />
+            <span class="worm-label">🔔 Reminder Worm</span>
+            <span class="worm-interval" id="worm-interval-reminder">60s</span>
+          </label>
+          <label class="brainworms-worm-toggle">
+            <input type="checkbox" id="worm-toggle-pattern" data-worm="pattern" checked />
+            <span class="worm-label">🔁 Pattern Worm</span>
+            <span class="worm-interval" id="worm-interval-pattern">90s</span>
+          </label>
+          <label class="brainworms-worm-toggle">
+            <input type="checkbox" id="worm-toggle-meta" data-worm="meta" checked />
+            <span class="worm-label">🔍 Meta Worm</span>
+            <span class="worm-interval" id="worm-interval-meta">120s</span>
+          </label>
+          <button id="brainworms-configure-all" class="btn btn-secondary btn-sm" style="margin-left:auto;">Apply</button>
+        </div>
+
+        <!-- Sighting Filter -->
+        <div class="brainworms-filter-bar">
+          <select id="brainworms-filter" class="mem-sort-select" title="Filter by worm type">
+            <option value="all">All Worms</option>
+            <option value="reminder">🔔 Reminders</option>
+            <option value="pattern">🔁 Patterns</option>
+            <option value="meta">🔍 Meta</option>
+          </select>
+          <span class="brainworms-count" id="brainworms-count">0 sightings</span>
+        </div>
+
+        <!-- Sightings List -->
+        <div class="brainworms-list" id="brainworms-list">
+          <div class="console-info">Brain worms are burrowing through your memory... sightings will appear here.</div>
+        </div>
+      </div>
+
+      <!-- Overmind View -->
+      <div id="overmind-view" class="browser-view">
+        <div class="overmind-toolbar">
+          <span class="console-title">Overmind</span>
+          <span id="overmind-self" class="overmind-self"></span>
+        </div>
+        <div class="overmind-section">
+          <h4>Arms</h4>
+          <div id="overmind-roster" class="overmind-roster"></div>
+        </div>
+        <div class="overmind-section">
+          <h4>Blackboard</h4>
+          <div class="overmind-post">
+            <input id="overmind-item-title" placeholder="Post work to the board..." />
+            <button id="overmind-post-btn" class="btn btn-primary btn-sm">Post</button>
+          </div>
+          <div class="overmind-autonomous">
+            <label class="overmind-auto-toggle">
+              <input type="checkbox" id="autonomous-toggle" />
+              Autonomous mode
+            </label>
+            <span id="autonomous-status" class="overmind-auto-status">off</span>
+          </div>
+          <div id="overmind-board" class="overmind-board"></div>
+        </div>
+        <div class="overmind-section">
+          <h4>Incoming asks</h4>
+          <div id="overmind-asks" class="overmind-asks"></div>
+        </div>
+      </div>
+
+      <!-- Git Workflow View -->
+      <div id="gitworkflow-view" class="browser-view">
+        <div class="grimoires-toolbar">
+          <span class="console-title">🔄 Git Workflow</span>
+          <div class="grimoires-actions">
+            <button id="gitwf-refresh" class="toolbar-btn" title="Refresh Status">⟳</button>
+          </div>
+        </div>
+
+        <!-- Workflow Status Bar -->
+        <div class="brainworms-status-bar" id="gitwf-status-bar">
+          <span id="gitwf-status-text">Loading workflow status...</span>
+        </div>
+
+        <!-- Workflow Actions -->
+        <div class="brainworms-config" id="gitwf-actions">
+          <button id="gitwf-start-btn" class="btn btn-primary btn-sm" title="Start a new workflow">🚀 Start Workflow</button>
+          <button id="gitwf-submit-btn" class="btn btn-primary btn-sm" title="Submit for Claude review">📤 Submit for Review</button>
+          <button id="gitwf-merge-btn" class="btn btn-secondary btn-sm" title="Merge approved branch">✅ Merge</button>
+          <button id="gitwf-abort-btn" class="btn btn-danger btn-sm" title="Abandon workflow">🗑️ Abort</button>
+        </div>
+
+        <!-- Workflow Info -->
+        <div class="brainworms-filter-bar">
+          <span class="console-title" style="flex:1;">Status Details</span>
+        </div>
+        <div class="brainworms-list" id="gitwf-details">
+          <div class="console-info">No active workflow. Click "Start Workflow" to begin.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Value Inspector Modal -->
+  <div id="mem-inspector-modal" class="mem-inspector-modal" style="display:none;">
+    <div class="mem-inspector-backdrop"></div>
+    <div class="mem-inspector-dialog">
+      <div class="mem-inspector-header">
+        <span id="mem-inspector-key" class="mem-inspector-key"></span>
+        <div class="mem-inspector-actions">
+          <button id="mem-inspector-copy" class="toolbar-btn" title="Copy value">📋</button>
+          <button id="mem-inspector-close" class="toolbar-btn" title="Close">✕</button>
+        </div>
+      </div>
+      <div class="mem-inspector-body">
+        <div class="mem-inspector-meta">
+          <span>Tier: <strong id="mem-inspector-tier"></strong></span>
+          <span>Namespace: <strong id="mem-inspector-ns"></strong></span>
+          <span>Type: <strong id="mem-inspector-type"></strong></span>
+          <span>Length: <strong id="mem-inspector-len"></strong></span>
+        </div>
+        <pre id="mem-inspector-value" class="mem-inspector-value"></pre>
+      </div>
+      <div class="mem-inspector-footer">
+        <button id="mem-inspector-edit" class="btn btn-primary btn-sm">✏️ Edit Value</button>
+        <button id="mem-inspector-delete" class="btn btn-danger btn-sm">🗑️ Delete Key</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grimoire Create/Edit Modal -->
+  <div id="grimoire-modal" class="grimoire-modal" style="display:none;">
+    <div class="grimoire-modal-backdrop"></div>
+    <div class="grimoire-modal-dialog">
+      <div class="grimoire-modal-header">
+        <span id="grimoire-modal-title" class="grimoire-modal-title">Create Grimoire</span>
+        <div class="grimoire-modal-actions">
+          <button id="grimoire-modal-close" class="toolbar-btn" title="Close">✕</button>
+        </div>
+      </div>
+      <div class="grimoire-modal-body">
+        <div class="grimoire-form-group">
+          <label class="grimoire-form-label">ID</label>
+          <input type="text" id="grimoire-form-id" class="grimoire-form-input" placeholder="e.g., fireball" />
+        </div>
+        <div class="grimoire-form-group">
+          <label class="grimoire-form-label">Title</label>
+          <input type="text" id="grimoire-form-title" class="grimoire-form-input" placeholder="e.g., Fireball" />
+        </div>
+        <div class="grimoire-form-group">
+          <label class="grimoire-form-label">Chapters (JSON Array of {heading, content})</label>
+          <textarea id="grimoire-form-chapters" class="grimoire-form-textarea" placeholder='[\n  {"heading": "Introduction", "content": "..."},\n  {"heading": "Usage", "content": "..."}\n]'></textarea>
+        </div>
+      </div>
+      <div class="grimoire-modal-footer">
+        <button id="grimoire-form-cancel" class="btn btn-secondary btn-sm">Cancel</button>
+        <button id="grimoire-form-save" class="btn btn-primary btn-sm">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Picker Modal -->
+  <div id="session-picker" style="display:none;">
+    <div class="picker-backdrop"></div>
+    <div class="picker-dialog">
+      <div class="picker-header">
+        <span class="picker-title">Resume a session</span>
+        <button id="picker-new-btn" class="btn btn-primary btn-sm">+ New Session</button>
+      </div>
+      <div id="picker-list" class="picker-list"></div>
+    </div>
+  </div>
+
+  <script src="autonomous.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
