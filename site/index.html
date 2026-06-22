@@ -28,7 +28,7 @@
       <p class="tagline">An Electron desktop app: a local chat interface to <strong>DeepSeek</strong> with a fully integrated browser the AI can open, navigate, and automate.</p>
       <div class="btn-row">
         <a class="btn primary" href="#quickstart">Get started</a>
-        <a class="btn ghost" href="https://github.com/superness/deepconsole/releases/latest">Download v1.0.0</a>
+        <a class="btn ghost" href="https://github.com/superness/deepconsole/releases/latest">Download for Windows</a>
         <a class="btn ghost" href="https://github.com/superness/deepconsole">View on GitHub</a>
       </div>
 
@@ -67,16 +67,23 @@
 
     <section id="quickstart">
       <h2>Quickstart</h2>
-      <p>DeepConsole is the UI; it runs against a sibling backend called <a href="https://github.com/superness/abuddi"><code>abuddi</code></a> (a DeepSeek-backed agent server). You clone both side by side.</p>
+      <p>Two ways to run DeepConsole: <strong>download the Windows build</strong> (no Python, no source) or <strong>run from source</strong> on any platform. Either way you'll need a <strong>DeepSeek API key</strong> — free to create at <a href="https://platform.deepseek.com">platform.deepseek.com</a>.</p>
 
-      <h3>Prerequisites</h3>
-      <ul>
-        <li><strong>Node.js 18+</strong> (tested with v24)</li>
-        <li><strong>Python 3.10+</strong></li>
-        <li>A <strong>DeepSeek API key</strong> — from <a href="https://platform.deepseek.com">platform.deepseek.com</a></li>
-      </ul>
+      <h3>Option A — Download for Windows (recommended)</h3>
+      <p>A self-contained build with the DeepSeek backend bundled in. No Python, no cloning.</p>
+      <div class="btn-row" style="justify-content:flex-start">
+        <a class="btn primary" href="https://github.com/superness/deepconsole/releases/latest">Installer</a>
+        <a class="btn ghost" href="https://github.com/superness/deepconsole/releases/latest">Portable (no install)</a>
+      </div>
+      <ol class="steps">
+        <li><strong>Download</strong> the <strong>installer</strong> (<code>DeepConsole Setup …exe</code>) or the <strong>portable</strong> build (<code>DeepConsole …exe</code>, runs without installing) from the <a href="https://github.com/superness/deepconsole/releases/latest">latest release</a>.</li>
+        <li><strong>Run it.</strong> The build is unsigned, so Windows SmartScreen shows “Windows protected your PC” — click <strong>More info → Run anyway</strong>.</li>
+        <li><strong>Enter your DeepSeek key</strong> when prompted on first launch, then <strong>restart DeepConsole once</strong> so the backend picks it up.</li>
+        <li><strong>Start chatting.</strong></li>
+      </ol>
 
-      <h3>Setup</h3>
+      <h3>Option B — Run from source (any platform / development)</h3>
+      <p>Requires <strong>Node.js 18+</strong> and <strong>Python 3.10+</strong>. DeepConsole is the UI; it runs against the sibling backend <a href="https://github.com/superness/abuddi"><code>abuddi</code></a>, cloned alongside it.</p>
       <ol class="steps">
         <li><strong>Clone both repos as siblings</strong> (same parent folder):
 <pre>git clone https://github.com/superness/deepconsole.git
@@ -84,18 +91,16 @@ git clone https://github.com/superness/abuddi.git</pre></li>
         <li><strong>Install the backend's Python dependencies</strong>:
 <pre>cd abuddi
 pip install -r requirements.txt</pre></li>
-        <li><strong>Add your DeepSeek key</strong> — create <code>abuddi/.env</code>:
-<pre>DEEPSEEK_API_KEY=sk-your-key-here</pre></li>
         <li><strong>Install and launch the app</strong>:
 <pre>cd ../deepconsole
 npm install
 npm start</pre></li>
-        <li><strong>That's it.</strong> <code>npm start</code> launches Electron, which spawns the abuddi backend on port <code>8000</code> and waits for it to report healthy. When the app shows ready, start chatting.</li>
+        <li><strong>Add your DeepSeek key</strong> — enter it in the app on first launch (or set <code>DEEPSEEK_API_KEY</code> in <code>abuddi/.env</code>). <code>npm start</code> launches Electron, which spawns the abuddi backend on port <code>8000</code>; when it reports healthy, start chatting.</li>
       </ol>
 
       <div class="callout">
-        <p class="label">Folder layout</p>
-        <p>After cloning, your parent folder should contain <code>deepconsole/</code> and <code>abuddi/</code> next to each other. The app looks for the backend at <code>../abuddi</code> relative to itself.</p>
+        <p class="label">Folder layout (source)</p>
+        <p>Your parent folder should contain <code>deepconsole/</code> and <code>abuddi/</code> next to each other — the app looks for the backend at <code>../abuddi</code>.</p>
       </div>
 
       <p>Hitting a snag? See <a href="troubleshooting.html">Troubleshooting</a>. Run <code>npm run dev</code> instead of <code>npm start</code> to open with DevTools.</p>
