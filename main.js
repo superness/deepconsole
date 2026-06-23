@@ -508,6 +508,15 @@ ipcMain.handle('llm:respond', async (event, { sessionId, answer }) => { try { re
 ipcMain.handle('agents:list', async () => { try { return await httpRequest('GET', '/agents'); } catch (e) { return []; } });
 ipcMain.handle('agents:get', async (event, agentId) => { try { return await httpRequest('GET', `/agents/${agentId}`); } catch (e) { return null; } });
 ipcMain.handle('agents:reload', async () => { try { return await httpRequest('POST', '/agents/reload'); } catch (e) { return { error: e.message }; } });
+ipcMain.handle('agents:create', async (event, spec) => {
+  return await httpRequest('POST', '/agents', spec);
+});
+ipcMain.handle('agents:update', async (event, { agentId, spec }) => {
+  return await httpRequest('PUT', `/agents/${agentId}`, spec);
+});
+ipcMain.handle('agents:delete', async (event, agentId) => {
+  return await httpRequest('DELETE', `/agents/${agentId}`);
+});
 
 // ABUDDI
 ipcMain.handle('abuddi:score', async (event, { task }) => { try { return await httpRequest('POST', '/abuddi/score', { message: task }); } catch (e) { return { error: e.message }; } });
@@ -678,34 +687,6 @@ ipcMain.handle('brainworms:configure', async (event, { worm, enabled, interval }
 });
 ipcMain.handle('brainworms:clear', async () => {
   try { return await httpRequest('DELETE', '/brainworms/sightings'); }
-  catch (e) { return { error: e.message }; }
-});
-
-// ─── Git Workflow IPC ───────────────────────────────────────────────────────
-// All code changes go through: branch → commit → ClaudePlus review → merge.
-
-ipcMain.handle('workflow:start', async (event, { task }) => {
-  try { return await httpRequest('POST', '/workflow/start', { task }); }
-  catch (e) { return { error: e.message }; }
-});
-
-ipcMain.handle('workflow:submit', async (event, { files, message }) => {
-  try { return await httpRequest('POST', '/workflow/submit', { files, message }); }
-  catch (e) { return { error: e.message }; }
-});
-
-ipcMain.handle('workflow:status', async () => {
-  try { return await httpRequest('GET', '/workflow/status'); }
-  catch (e) { return { error: e.message }; }
-});
-
-ipcMain.handle('workflow:merge', async () => {
-  try { return await httpRequest('POST', '/workflow/merge'); }
-  catch (e) { return { error: e.message }; }
-});
-
-ipcMain.handle('workflow:abort', async () => {
-  try { return await httpRequest('POST', '/workflow/abort'); }
   catch (e) { return { error: e.message }; }
 });
 

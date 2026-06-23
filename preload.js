@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('deepconsole', {
     list: () => ipcRenderer.invoke('agents:list'),
     get: (agentId) => ipcRenderer.invoke('agents:get', agentId),
     reload: () => ipcRenderer.invoke('agents:reload'),
+    create: (spec) => ipcRenderer.invoke('agents:create', spec),
+    update: (agentId, spec) => ipcRenderer.invoke('agents:update', { agentId, spec }),
+    delete: (agentId) => ipcRenderer.invoke('agents:delete', agentId),
   },
 
   // ABUDDI Complexity Scoring
@@ -110,15 +113,6 @@ contextBridge.exposeInMainWorld('deepconsole', {
     },
   },
 
-  // ─── Git Workflow API (branch → commit → Claude review → merge) ────
-  gitWorkflow: {
-    start: (task) => ipcRenderer.invoke('workflow:start', { task }),
-    submit: (files, message) => ipcRenderer.invoke('workflow:submit', { files, message }),
-    status: () => ipcRenderer.invoke('workflow:status'),
-    merge: () => ipcRenderer.invoke('workflow:merge'),
-    abort: () => ipcRenderer.invoke('workflow:abort'),
-  },
-
   // Browser control
   browser: {
     open: (url) => ipcRenderer.invoke('browser:open', url),
@@ -147,13 +141,6 @@ contextBridge.exposeInMainWorld('deepconsole', {
       ipcRenderer.on('claude:streaming', handler);
       return () => ipcRenderer.removeListener('claude:streaming', handler);
     },
-  },
-
-  // ─── Key Store Config API ────────────────────────────────────────────
-  config: {
-    getKeyStatus: () => ipcRenderer.invoke('config:getKeyStatus'),
-    setKey: (key) => ipcRenderer.invoke('config:setKey', key),
-    clearKey: () => ipcRenderer.invoke('config:clearKey'),
   },
 
   // ─── Webview Control (internal) ──

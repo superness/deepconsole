@@ -421,6 +421,7 @@ body {
   flex-direction: column;
   background: var(--bg-primary);
   min-width: 0;
+  transition: flex-basis 0.2s ease, width 0.2s ease;
 }
 
 .browser-tabs {
@@ -457,6 +458,46 @@ body {
 
 .browser-view.active {
   display: flex;
+}
+
+/* ── Collapsible right panel (icon rail) ───────────────────────────────── */
+
+/* The collapse toggle button sits at the far right of the tab bar. */
+.panel-collapse-btn {
+  margin-left: auto;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.panel-collapse-btn:hover { color: var(--text-secondary); }
+
+/* When collapsed: chat fills the width, right panel becomes a thin rail. */
+.app-container.panel-collapsed .chat-panel {
+  width: auto;
+  flex: 1;
+}
+.app-container.panel-collapsed .browser-panel {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 0;
+}
+.app-container.panel-collapsed .browser-tabs {
+  flex-direction: column;
+  align-items: stretch;
+}
+/* Hide text labels (icon-only rail) and all tab views. */
+.app-container.panel-collapsed .tab-label { display: none; }
+.app-container.panel-collapsed .browser-view { display: none; }
+/* The collapse button is replaced by the icons themselves as the reopen affordance. */
+.app-container.panel-collapsed .panel-collapse-btn { display: none; }
+/* In the vertical rail, the active tab's underline reads better as a left border. */
+.app-container.panel-collapsed .tab.active {
+  border-bottom-color: transparent;
+  border-left: 2px solid var(--accent);
 }
 
 /* Browser Toolbar */
@@ -1785,7 +1826,7 @@ body {
   transition: border-color .25s ease;
 }
 .agent-card.nested { margin-left: 22px; border-style: dashed; }
-.agent-card.active { border-color: var(--accent, #a371f7); animation: agent-wiggle 1.6s ease-in-out infinite; }
+.agent-card.active { border-color: var(--accent, #a371f7); animation: tentacle-wiggle 1.6s ease-in-out infinite; }
 .agent-card.done { border-color: var(--success, #3fb950); animation: none; }
 .agent-card.failed { border-color: var(--error, #f85149); animation: none; }
 
@@ -1801,7 +1842,7 @@ body {
   height: 100%; width: 8%; border-radius: 3px;
   background: var(--accent, #a371f7); transition: width .3s ease;
 }
-.agent-card.active .agent-bar-fill { background-size: 200% 100%; animation: agent-shimmer 1.2s linear infinite;
+.agent-card.active .agent-bar-fill { background-size: 200% 100%; animation: tentacle-shimmer 1.2s linear infinite;
   background-image: linear-gradient(90deg, var(--accent, #a371f7), var(--text-secondary, #8b949e), var(--accent, #a371f7)); }
 .agent-card.done .agent-bar-fill { background: var(--success, #3fb950); width: 100% !important; }
 .agent-card.failed .agent-bar-fill { background: var(--error, #f85149); width: 100% !important; }
@@ -1813,12 +1854,12 @@ body {
 
 .delegation-panel.collapsed .delegation-cards { display: none; }
 
-@keyframes agent-wiggle {
+@keyframes tentacle-wiggle {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-1.5px); }
   75% { transform: translateX(1.5px); }
 }
-@keyframes agent-shimmer {
+@keyframes tentacle-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
@@ -1962,6 +2003,10 @@ body {
 }
 
 /* ─── Overmind Panel ──────────────────────────────────────────────────────── */
+/* The whole panel scrolls as one; the Arms roster is capped so a large fleet
+   can't push the blackboard off-screen (it scrolls within its own box). */
+#overmind-view { overflow-y:auto; }
+.overmind-roster { max-height:30vh; overflow-y:auto; }
 .overmind-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; }
 .overmind-self { opacity:.7; font-size:12px; }
 .overmind-section { padding:8px 12px; }
@@ -1970,7 +2015,7 @@ body {
 .overmind-post { display:flex; gap:6px; margin-bottom:6px; }
 .overmind-post input { flex:1; }
 
-.overmind-board { max-height:55vh; overflow-y:auto; }
+.overmind-board { }
 .overmind-item-card { border-bottom:1px solid rgba(255,255,255,.06); }
 .overmind-item-header { display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; }
 .overmind-item-header:hover { background:rgba(255,255,255,.04); }
@@ -2017,31 +2062,15 @@ body {
   border: none;
 }
 
-/* ─── Key Gate Overlay ──────────────────────────────────────────────────────── */
-.key-gate {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(13,14,26,0.92);
-  display: flex; align-items: center; justify-content: center;
+/* ─── Agent Create/Edit Form ─────────────────────────────────────────────── */
+.agent-form-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.agent-form-body label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+.agent-form-body input, .agent-form-body textarea {
+  background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);
+  border-radius: 4px; padding: 6px 8px; font-size: 12px; font-family: inherit;
 }
-.key-gate.hidden { display: none; }
-.key-card {
-  background: var(--bg-secondary); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 28px; width: 420px; max-width: 90vw;
-  box-shadow: var(--shadow);
-}
-.key-card h2 { margin: 0 0 8px; }
-.key-card p { color: var(--text-secondary); font-size: 14px; }
-.key-card input {
-  width: 100%; margin: 12px 0; padding: 10px 12px;
-  background: var(--bg-input); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); color: var(--text-primary); font-family: monospace;
-}
-.key-save {
-  width: 100%; padding: 11px; border: none; border-radius: var(--radius);
-  background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
-}
-.key-save:hover { background: var(--accent-hover); }
-.key-error { color: var(--error); font-size: 13px; }
-.key-error.hidden { display: none; }
-.key-restart-notice { color: var(--success); font-size: 14px; font-weight: 600; margin-top: 12px; }
-.key-restart-notice.hidden { display: none; }
+.agent-form-body details summary { cursor: pointer; font-size: 12px; color: var(--text-muted); margin: 4px 0; }
+.agent-form-error { color: var(--danger, #e06c75); font-size: 12px; }
+.agent-card-actions { display: flex; gap: 4px; margin-top: 4px; }
+.agent-card-actions button { background: transparent; border: none; cursor: pointer; font-size: 13px; color: var(--text-muted); }
+.agent-card-actions button:hover { color: var(--text-primary); }

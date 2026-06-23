@@ -19,13 +19,13 @@
       <div class="titlebar-actions">
         <button id="memory-panel-toggle" class="icon-btn" title="Working Memory">🧠</button>
         <button id="agent-panel-toggle" class="icon-btn" title="Agent Command Center">🤖</button>
-        <button id="open-settings" title="Settings" class="icon-btn">⚙️</button>
       </div>
     </div>
   </div>
 
-  <!-- Main Layout -->
-  <div class="app-container">
+  <!-- Main Layout (starts collapsed; JS keeps it in sync — class is here so the
+       panel renders collapsed on the first paint, with no expand-then-collapse flash) -->
+  <div class="app-container panel-collapsed">
     <!-- Left: Chat Panel -->
     <div class="chat-panel">
       <div class="chat-messages" id="chat-messages">
@@ -101,15 +101,15 @@
     <!-- Right: Multi-panel (Browser + Agents + Memory + Grimoires) -->
     <div class="browser-panel">
       <div class="browser-tabs">
-        <button id="browser-tab" class="tab active">🌐 Browser</button>
-        <button id="console-tab" class="tab">📋 Console</button>
-        <button id="js-tab" class="tab">💻 JS Runner</button>
-        <button id="agents-tab" class="tab">🤖 Agents</button>
-        <button id="memory-tab" class="tab">🧠 Memory</button>
-        <button id="grimoires-tab" class="tab">📖 Grimoires</button>
-        <button id="brainworms-tab" class="tab">🐛 Worms</button>
-        <button id="gitworkflow-tab" class="tab">🔄 Git</button>
-        <button id="overmind-tab" class="tab">Overmind</button>
+        <button id="browser-tab" class="tab active">🌐 <span class="tab-label">Browser</span></button>
+        <button id="console-tab" class="tab">📋 <span class="tab-label">Console</span></button>
+        <button id="js-tab" class="tab">💻 <span class="tab-label">JS Runner</span></button>
+        <button id="agents-tab" class="tab">🤖 <span class="tab-label">Agents</span></button>
+        <button id="memory-tab" class="tab">🧠 <span class="tab-label">Memory</span></button>
+        <button id="grimoires-tab" class="tab">📖 <span class="tab-label">Grimoires</span></button>
+        <button id="brainworms-tab" class="tab">🧠 <span class="tab-label">Curator</span></button>
+        <button id="overmind-tab" class="tab">🛰️ <span class="tab-label">Overmind</span></button>
+        <button id="panel-collapse-btn" class="panel-collapse-btn" title="Collapse panel">▶</button>
       </div>
 
       <!-- Browser View -->
@@ -161,8 +161,8 @@
         <div class="agents-toolbar">
           <span class="console-title">🤖 Agent Command Center</span>
           <div class="agents-actions">
+            <button id="agent-new" class="toolbar-btn" title="New Agent">＋ New</button>
             <button id="agents-refresh" class="toolbar-btn" title="Refresh Agents">⟳</button>
-            <button id="agents-open-hats" class="toolbar-btn" title="Open Agent Files">📁</button>
           </div>
         </div>
 
@@ -178,6 +178,28 @@
             <span class="agent-detail-name" id="agent-detail-name"></span>
           </div>
           <div class="agent-detail-content" id="agent-detail-content"></div>
+        </div>
+
+        <!-- Agent Create/Edit Form -->
+        <div class="agent-form" id="agent-form" style="display:none;">
+          <div class="agent-detail-header">
+            <button id="agent-form-cancel" class="toolbar-btn" title="Cancel">← Cancel</button>
+            <span class="agent-detail-name" id="agent-form-title">New Agent</span>
+          </div>
+          <div class="agent-form-body">
+            <label>Name<input type="text" id="af-name" placeholder="e.g. Data Wrangler" /></label>
+            <label>Description (use-when)<textarea id="af-description" rows="2" placeholder="Use this agent when…"></textarea></label>
+            <label>System Prompt<textarea id="af-systemPrompt" rows="6" placeholder="You are…"></textarea></label>
+            <details>
+              <summary>Optional fields</summary>
+              <label>Role<input type="text" id="af-role" /></label>
+              <label>Expertise (one per line)<textarea id="af-expertise" rows="2"></textarea></label>
+              <label>Decisions (one per line)<textarea id="af-decisions" rows="2"></textarea></label>
+              <label>Output Format<input type="text" id="af-outputFormat" placeholder="markdown" /></label>
+            </details>
+            <div id="agent-form-error" class="agent-form-error" style="display:none;"></div>
+            <button id="agent-form-save" class="btn btn-primary">Save Agent</button>
+          </div>
         </div>
 
         <!-- ABUDDI Scorer -->
@@ -293,7 +315,7 @@
       <!-- Brain Worms View -->
       <div id="brainworms-view" class="browser-view">
         <div class="grimoires-toolbar">
-          <span class="console-title">🐛 Brain Worms</span>
+          <span class="console-title">🧠 Knowledge Curator</span>
           <div class="grimoires-actions">
             <button id="brainworms-refresh" class="toolbar-btn" title="Refresh Sightings">⟳</button>
             <button id="brainworms-burrow-btn" class="toolbar-btn" title="Trigger Burrow Now">🕳️</button>
@@ -306,33 +328,12 @@
           <span id="brainworms-status-text">Loading worm status...</span>
         </div>
 
-        <!-- Worm Config Toggles -->
-        <div class="brainworms-config" id="brainworms-config">
-          <label class="brainworms-worm-toggle">
-            <input type="checkbox" id="worm-toggle-reminder" data-worm="reminder" checked />
-            <span class="worm-label">🔔 Reminder Worm</span>
-            <span class="worm-interval" id="worm-interval-reminder">60s</span>
-          </label>
-          <label class="brainworms-worm-toggle">
-            <input type="checkbox" id="worm-toggle-pattern" data-worm="pattern" checked />
-            <span class="worm-label">🔁 Pattern Worm</span>
-            <span class="worm-interval" id="worm-interval-pattern">90s</span>
-          </label>
-          <label class="brainworms-worm-toggle">
-            <input type="checkbox" id="worm-toggle-meta" data-worm="meta" checked />
-            <span class="worm-label">🔍 Meta Worm</span>
-            <span class="worm-interval" id="worm-interval-meta">120s</span>
-          </label>
-          <button id="brainworms-configure-all" class="btn btn-secondary btn-sm" style="margin-left:auto;">Apply</button>
-        </div>
+        <!-- Worm Config Toggles (removed: reminder/pattern/meta worms gone) -->
 
         <!-- Sighting Filter -->
         <div class="brainworms-filter-bar">
           <select id="brainworms-filter" class="mem-sort-select" title="Filter by worm type">
             <option value="all">All Worms</option>
-            <option value="reminder">🔔 Reminders</option>
-            <option value="pattern">🔁 Patterns</option>
-            <option value="meta">🔍 Meta</option>
           </select>
           <span class="brainworms-count" id="brainworms-count">0 sightings</span>
         </div>
@@ -346,7 +347,7 @@
       <!-- Overmind View -->
       <div id="overmind-view" class="browser-view">
         <div class="overmind-toolbar">
-          <span class="console-title">Overmind</span>
+          <span class="console-title">🐙 Overmind</span>
           <span id="overmind-self" class="overmind-self"></span>
         </div>
         <div class="overmind-section">
@@ -374,36 +375,6 @@
         </div>
       </div>
 
-      <!-- Git Workflow View -->
-      <div id="gitworkflow-view" class="browser-view">
-        <div class="grimoires-toolbar">
-          <span class="console-title">🔄 Git Workflow</span>
-          <div class="grimoires-actions">
-            <button id="gitwf-refresh" class="toolbar-btn" title="Refresh Status">⟳</button>
-          </div>
-        </div>
-
-        <!-- Workflow Status Bar -->
-        <div class="brainworms-status-bar" id="gitwf-status-bar">
-          <span id="gitwf-status-text">Loading workflow status...</span>
-        </div>
-
-        <!-- Workflow Actions -->
-        <div class="brainworms-config" id="gitwf-actions">
-          <button id="gitwf-start-btn" class="btn btn-primary btn-sm" title="Start a new workflow">🚀 Start Workflow</button>
-          <button id="gitwf-submit-btn" class="btn btn-primary btn-sm" title="Submit for Claude review">📤 Submit for Review</button>
-          <button id="gitwf-merge-btn" class="btn btn-secondary btn-sm" title="Merge approved branch">✅ Merge</button>
-          <button id="gitwf-abort-btn" class="btn btn-danger btn-sm" title="Abandon workflow">🗑️ Abort</button>
-        </div>
-
-        <!-- Workflow Info -->
-        <div class="brainworms-filter-bar">
-          <span class="console-title" style="flex:1;">Status Details</span>
-        </div>
-        <div class="brainworms-list" id="gitwf-details">
-          <div class="console-info">No active workflow. Click "Start Workflow" to begin.</div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -474,19 +445,6 @@
         <button id="picker-new-btn" class="btn btn-primary btn-sm">+ New Session</button>
       </div>
       <div id="picker-list" class="picker-list"></div>
-    </div>
-  </div>
-
-  <!-- Key Gate Overlay -->
-  <div id="key-gate" class="key-gate hidden">
-    <div class="key-card">
-      <h2>🔑 Connect DeepSeek</h2>
-      <p>DeepConsole needs your DeepSeek API key to run. Get one at
-         <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>.</p>
-      <input id="key-input" type="password" placeholder="sk-..." autocomplete="off" />
-      <p id="key-error" class="key-error hidden"></p>
-      <button id="key-save" class="key-save">Save &amp; Connect</button>
-      <p id="key-restart-notice" class="key-restart-notice hidden">&#x2705; Key saved. Please restart DeepConsole to connect.</p>
     </div>
   </div>
 

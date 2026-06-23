@@ -73,6 +73,10 @@ const tabConsole = document.getElementById('console-tab');
 const tabJS = document.getElementById('js-tab');
 const tabAgents = document.getElementById('agents-tab');
 const tabMemory = document.getElementById('memory-tab');
+const appContainer = document.querySelector('.app-container');
+const browserTabsEl = document.querySelector('.browser-tabs');
+const panelCollapseBtn = document.getElementById('panel-collapse-btn');
+let panelCollapsed = false;
 const viewBrowser = document.getElementById('browser-view');
 const viewConsole = document.getElementById('console-view');
 const viewJS = document.getElementById('js-view');
@@ -82,11 +86,22 @@ const viewMemory = document.getElementById('memory-view');
 // Agent panel
 const agentsList = document.getElementById('agents-list');
 const agentsRefresh = document.getElementById('agents-refresh');
-const agentsOpenHats = document.getElementById('agents-open-hats');
 const agentDetail = document.getElementById('agent-detail');
 const agentDetailBack = document.getElementById('agent-detail-back');
 const agentDetailName = document.getElementById('agent-detail-name');
 const agentDetailContent = document.getElementById('agent-detail-content');
+const agentNewBtn = document.getElementById('agent-new');
+const agentForm = document.getElementById('agent-form');
+const agentFormTitle = document.getElementById('agent-form-title');
+const agentFormError = document.getElementById('agent-form-error');
+const afName = document.getElementById('af-name');
+const afDescription = document.getElementById('af-description');
+const afSystemPrompt = document.getElementById('af-systemPrompt');
+const afRole = document.getElementById('af-role');
+const afExpertise = document.getElementById('af-expertise');
+const afDecisions = document.getElementById('af-decisions');
+const afOutputFormat = document.getElementById('af-outputFormat');
+let agentFormEditId = null;  // null = create mode; else the id being edited
 const abuddiInput = document.getElementById('abuddi-input');
 const abuddiScoreBtn = document.getElementById('abuddi-score-btn');
 const abuddiResult = document.getElementById('abuddi-result');
@@ -844,6 +859,37 @@ function switchTab(tab) {
 }
 
 tabBrowser.addEventListener('click', () => switchTab('browser'));
+
+// ── Collapsible right panel ────────────────────────────────────────
+function setPanelCollapsed(collapsed) {
+  panelCollapsed = collapsed;
+  appContainer.classList.toggle('panel-collapsed', collapsed);
+  try {
+    localStorage.setItem('deepconsole-panel-collapsed', collapsed ? 'true' : 'false');
+  } catch (e) { /* localStorage may be unavailable; ignore */ }
+}
+
+// Collapse via the ▶ button (only visible when expanded).
+if (panelCollapseBtn) {
+  panelCollapseBtn.addEventListener('click', () => setPanelCollapsed(true));
+}
+
+// Reopen: clicking any tab icon in the rail expands the panel. Delegated on the
+// tab bar so the many per-tab switchTab handlers (which still fire and select the
+// tab) need no changes. The collapse button is not a .tab, so it is ignored here.
+if (browserTabsEl) {
+  browserTabsEl.addEventListener('click', (e) => {
+    if (panelCollapsed && e.target.closest('.tab')) {
+      setPanelCollapsed(false);
+    }
+  });
+}
+
+// Always start collapsed on launch (chat takes the full width). The panel can be
+// reopened for the current session by clicking any tab icon; it returns to
+// collapsed on the next launch.
+setPanelCollapsed(true);
+
 tabConsole.addEventListener('click', () => switchTab('console'));
 tabJS.addEventListener('click', () => switchTab('js'));
 tabAgents.addEventListener('click', () => {
@@ -964,6 +1010,72 @@ jsCode.addEventListener('keydown', (e) => {
 
 // ─── Agent Command Center ──────────────────────────────────────────────────
 
+function openAgentForm(agent) {
+  agentFormEditId = agent ? agent.id : null;
+  agentFormTitle.textContent = agent ? `Edit: ${agent.name || agent.id}` : 'New Agent';
+  afName.value = agent ? (agent.name || '') : '';
+  afDescription.value = agent ? (agent.description || '') : '';
+  afSystemPrompt.value = agent ? (agent.systemPrompt || '') : '';
+  afRole.value = agent ? (agent.role || '') : '';
+  afExpertise.value = agent ? (agent.expertise || []).join('\n') : '';
+  afDecisions.value = agent ? (agent.decisions || []).join('\n') : '';
+  afOutputFormat.value = agent ? (agent.outputFormat || '') : '';
+  agentFormError.style.display = 'none';
+  agentsList.style.display = 'none';
+  agentDetail.style.display = 'none';
+  agentForm.style.display = 'block';
+}
+
+function closeAgentForm() {
+  agentForm.style.display = 'none';
+  agentsList.style.display = '';
+}
+
+function linesToList(text) {
+  return (text || '').split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+async function submitAgentForm() {
+  const spec = {
+    name: afName.value.trim(),
+    description: afDescription.value.trim(),
+    systemPrompt: afSystemPrompt.value,
+    role: afRole.value.trim(),
+    expertise: linesToList(afExpertise.value),
+    decisions: linesToList(afDecisions.value),
+    outputFormat: afOutputFormat.value.trim() || 'markdown',
+  };
+  try {
+    const res = agentFormEditId
+      ? await window.deepconsole.agents.update(agentFormEditId, spec)
+      : await window.deepconsole.agents.create(spec);
+    if (res && res.detail) {            // FastAPI error shape on non-2xx
+      agentFormError.textContent = res.detail;
+      agentFormError.style.display = 'block';
+      return;
+    }
+    closeAgentForm();
+    loadAgents();
+  } catch (err) {                       // network/transport failure
+    agentFormError.textContent = err.message || String(err);
+    agentFormError.style.display = 'block';
+  }
+}
+
+async function deleteAgentConfirm(agent) {
+  if (!confirm(`Delete agent "${agent.name || agent.id}"? This cannot be undone.`)) return;
+  try {
+    const res = await window.deepconsole.agents.delete(agent.id);
+    if (res && res.detail) {
+      alert(`Failed to delete: ${res.detail}`);
+      return;
+    }
+    loadAgents();
+  } catch (err) {
+    alert(`Failed to delete: ${err.message || err}`);
+  }
+}
+
 async function loadAgents() {
   agentsList.innerHTML = '<div class="agents-loading">Loading agents...</div>';
   try {
@@ -1000,7 +1112,23 @@ function renderAgentList(agents) {
       <div class="agent-card-meta">${(agent.expertise || []).length} skills</div>
     `;
 
+    const actions = agent.builtin ? '' :
+      `<button class="agent-edit-btn" title="Edit">✎</button>` +
+      `<button class="agent-del-btn" title="Delete">🗑</button>`;
+    if (!agent.builtin && actions) {
+      card.querySelector('.agent-card-meta').insertAdjacentHTML('beforeend', `<div class="agent-card-actions">${actions}</div>`);
+    }
+
     card.addEventListener('click', () => showAgentDetail(agent.id));
+    const editBtn = card.querySelector('.agent-edit-btn');
+    if (editBtn) editBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const full = await window.deepconsole.agents.get(agent.id);
+      if (full && !full.detail) openAgentForm(full);
+      else alert(`Failed to load agent: ${(full && full.detail) || 'not found'}`);
+    });
+    const delBtn = card.querySelector('.agent-del-btn');
+    if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteAgentConfirm(agent); });
     agentsList.appendChild(card);
   }
 }
@@ -1054,17 +1182,9 @@ agentDetailBack.addEventListener('click', () => {
 
 agentsRefresh.addEventListener('click', loadAgents);
 
-agentsOpenHats.addEventListener('click', async () => {
-  // Open the agents directory
-  try {
-    const result = await window.deepconsole.browser.executeJS('void 0');
-    // Just reload agents from server
-    await window.deepconsole.agents.reload();
-    loadAgents();
-  } catch (err) {
-    console.error(err);
-  }
-});
+agentNewBtn.addEventListener('click', () => openAgentForm(null));
+document.getElementById('agent-form-cancel').addEventListener('click', closeAgentForm);
+document.getElementById('agent-form-save').addEventListener('click', submitAgentForm);
 
 // ─── ABUDDI Complexity Scorer ──────────────────────────────────────────────
 
@@ -1182,6 +1302,20 @@ async function refreshMemoryView() {
       opt.textContent = ns;
       memoryNamespaceSelect.appendChild(opt);
     });
+  }
+
+  // For the session tier, default to the CURRENT session (empty on a brand-new
+  // session) rather than whatever stored namespace happened to sort first.
+  // Add it to the dropdown if it isn't there yet so it can be selected.
+  if (memoryCurrentTier === 'session') {
+    const cur = getDefaultNamespace('session');
+    if (![...memoryNamespaceSelect.options].some(o => o.value === cur)) {
+      const opt = document.createElement('option');
+      opt.value = cur;
+      opt.textContent = cur.replace(/^session_/, '') + ' (current)';
+      memoryNamespaceSelect.insertBefore(opt, memoryNamespaceSelect.firstChild);
+    }
+    memoryNamespaceSelect.value = cur;
   }
 
   memoryCurrentNamespace = memoryNamespaceSelect.value || getDefaultNamespace(memoryCurrentTier);
@@ -2250,7 +2384,7 @@ const brainwormsClear = document.getElementById('brainworms-clear');
 const brainwormsStatusText = document.getElementById('brainworms-status-text');
 const brainwormsCount = document.getElementById('brainworms-count');
 const brainwormsFilter = document.getElementById('brainworms-filter');
-const brainwormsConfigureAll = document.getElementById('brainworms-configure-all');
+
 
 // ─── State ──────────────────────────────────────────────────────────────────
 let brainwormsAllSightings = [];
@@ -2302,18 +2436,7 @@ async function loadBrainWormStatus() {
       parts.push(status.total_sightings + ' sighting(s)');
       brainwormsStatusText.textContent = parts.join(' · ');
 
-      // Update toggle states
-      if (status.worms) {
-        for (const [name, info] of Object.entries(status.worms)) {
-          var toggle = document.getElementById('worm-toggle-' + name);
-          var intervalEl = document.getElementById('worm-interval-' + name);
-          if (toggle) toggle.checked = info.enabled;
-          if (intervalEl) {
-            var mins = Math.round(info.interval_seconds / 60);
-            intervalEl.textContent = mins + 'm';
-          }
-        }
-      }
+
     } else {
       brainwormsStatusText.textContent = '⚠️ Could not load worm status';
     }
@@ -2343,7 +2466,7 @@ async function loadBrainWormSightings() {
 function renderBrainWormSightings() {
   var sightings = brainwormsAllSightings;
   if (!sightings || sightings.length === 0) {
-    brainwormsList.innerHTML = '<div class="console-info">No brain worm sightings yet. Worms are burrowing through memory every minute or so — check back soon or click 🕳️ to trigger a manual burrow.</div>';
+    brainwormsList.innerHTML = '<div class="console-info">No curator activity yet. The knowledge curator runs every 6 hours — click 🕳️ to trigger a manual run.</div>';
     brainwormsCount.textContent = '0 sightings';
     return;
   }
@@ -2353,9 +2476,9 @@ function renderBrainWormSightings() {
   var html = '';
   for (var i = sightings.length - 1; i >= 0; i--) {
     var s = sightings[i];
-    var wormIcons = { reminder: '🔔', pattern: '🔁', meta: '🔍', system: '🐛' };
-    var icon = wormIcons[s.worm] || '🐛';
-    var severityColors = { info: 'var(--text-secondary)', warning: 'var(--warning)', size: 'var(--accent)', pattern: '#74b9ff' };
+    var wormIcons = { knowledge_curator: '🧠', system: '🔧' };
+    var icon = wormIcons[s.worm] || '🧠';
+    var severityColors = { info: 'var(--text-secondary)', warning: 'var(--warning)' };
     var color = severityColors[s.severity] || 'var(--text-secondary)';
     var ts = (s.timestamp || '').slice(11, 19); // HH:MM:SS
     var preview = s.preview || '(no preview)';
@@ -2422,7 +2545,7 @@ async function triggerBrainWormBurrow() {
     var result = await window.deepconsole.brainworms.burrow(null);
     if (result && result.ok) {
       // Sightings will arrive via SSE
-      brainwormsList.innerHTML = '<div class="console-info">🐛 Worms burrowing... sightings arriving shortly via live stream.</div>';
+      brainwormsList.innerHTML = '<div class="console-info">🧠 Curator revalidating facts… results arriving shortly via live stream.</div>';
     } else if (result && result.error) {
       brainwormsList.innerHTML = '<div class="result-error">Error: ' + result.error + '</div>';
     }
@@ -2447,26 +2570,7 @@ async function clearBrainWormSightings() {
   }
 }
 
-// ─── Apply Config ───────────────────────────────────────────────────────────
-async function applyBrainWormConfig() {
-  var worms = ['reminder', 'pattern', 'meta'];
-  for (var i = 0; i < worms.length; i++) {
-    var name = worms[i];
-    var toggle = document.getElementById('worm-toggle-' + name);
-    if (!toggle) continue;
-    var enabled = toggle.checked;
-    try {
-      await window.deepconsole.brainworms.configure(name, enabled, null);
-    } catch (err) {
-      console.warn('Failed to configure worm ' + name + ':', err);
-    }
-  }
-  await loadBrainWormStatus();
-  brainwormsStatusText.textContent = '✅ Config applied';
-  setTimeout(function() {
-    loadBrainWormStatus();
-  }, 1000);
-}
+
 
 // ─── Event Listeners ────────────────────────────────────────────────────────
 brainwormsRefresh.addEventListener('click', function() {
@@ -2481,8 +2585,6 @@ brainwormsFilter.addEventListener('change', function() {
   loadBrainWormSightings();
 });
 
-brainwormsConfigureAll.addEventListener('click', applyBrainWormConfig);
-
 // ─── Export Functions ──────────────────────────────────────────────────────
 window._brainworms = {
   load: loadBrainWorms,
@@ -2493,308 +2595,6 @@ window._brainworms = {
 
 
 
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ─── Git Workflow Panel ──────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ─── DOM References ─────────────────────────────────────────────────────────
-const tabGitWorkflow = document.getElementById('gitworkflow-tab');
-const viewGitWorkflow = document.getElementById('gitworkflow-view');
-const gitwfStatusText = document.getElementById('gitwf-status-text');
-const gitwfRefresh = document.getElementById('gitwf-refresh');
-const gitwfDetails = document.getElementById('gitwf-details');
-const gitwfStartBtn = document.getElementById('gitwf-start-btn');
-const gitwfSubmitBtn = document.getElementById('gitwf-submit-btn');
-const gitwfMergeBtn = document.getElementById('gitwf-merge-btn');
-const gitwfAbortBtn = document.getElementById('gitwf-abort-btn');
-
-// ─── Extend switchTab for git workflow ───────────────────────────────────────
-(function() {
-  var origSwitch = window.switchTab;
-  window.switchTab = function(tab) {
-    var tabs = [tabBrowser, tabConsole, tabJS, tabAgents, tabMemory, tabGrimoires, tabBrainWorms, tabGitWorkflow];
-    var views = [viewBrowser, viewConsole, viewJS, viewAgents, viewMemory, viewGrimoires, viewBrainWorms, viewGitWorkflow];
-    tabs.forEach(function(t) { t.classList.remove('active'); });
-    views.forEach(function(v) { v.classList.remove('active'); });
-
-    if (tab === 'browser') { tabBrowser.classList.add('active'); viewBrowser.classList.add('active'); }
-    else if (tab === 'console') { tabConsole.classList.add('active'); viewConsole.classList.add('active'); }
-    else if (tab === 'js') { tabJS.classList.add('active'); viewJS.classList.add('active'); }
-    else if (tab === 'agents') { tabAgents.classList.add('active'); viewAgents.classList.add('active'); loadAgents(); }
-    else if (tab === 'memory') { tabMemory.classList.add('active'); viewMemory.classList.add('active'); refreshMemoryView(); }
-    else if (tab === 'grimoires') { tabGrimoires.classList.add('active'); viewGrimoires.classList.add('active'); loadGrimoires(); }
-    else if (tab === 'brainworms') { tabBrainWorms.classList.add('active'); viewBrainWorms.classList.add('active'); loadBrainWorms(); }
-    else if (tab === 'gitworkflow') { tabGitWorkflow.classList.add('active'); viewGitWorkflow.classList.add('active'); loadGitWorkflowStatus(); }
-  };
-})();
-
-// ─── Tab Click ──────────────────────────────────────────────────────────────
-tabGitWorkflow.addEventListener('click', function() {
-  switchTab('gitworkflow');
-});
-
-// ─── Load Workflow Status ───────────────────────────────────────────────────
-async function loadGitWorkflowStatus() {
-  gitwfStatusText.textContent = 'Loading workflow status...';
-  gitwfDetails.innerHTML = '<div class="console-info">Loading...</div>';
-
-  try {
-    const status = await window.deepconsole.gitWorkflow.status();
-    if (status && !status.error) {
-      renderGitWorkflowStatus(status);
-    } else if (status && status.error) {
-      gitwfStatusText.textContent = '⚠️ ' + status.error;
-      gitwfDetails.innerHTML = '<div class="result-error">Error: ' + status.error + '</div>';
-    } else {
-      gitwfStatusText.textContent = '⚠️ Could not reach Git Workflow API';
-      gitwfDetails.innerHTML = '<div class="console-info">The Git Workflow backend may not be available. Check that the server is running.</div>';
-    }
-  } catch (err) {
-    gitwfStatusText.textContent = '⚠️ Error: ' + err.message;
-    gitwfDetails.innerHTML = '<div class="result-error">Error: ' + err.message + '</div>';
-  }
-}
-
-// ─── Render Workflow Status ─────────────────────────────────────────────────
-function renderGitWorkflowStatus(status) {
-  var active = status.active || status.is_in_workflow;
-  var branch = status.current_branch || status.branch || 'unknown';
-  var isWorkflow = status.is_in_workflow;
-  var task = status.task || '(none)';
-  var files = status.files_changed || [];
-  var reviewStatus = status.review_status || 'none';
-  var started = status.started_at || '';
-
-  // Status bar
-  var indicator = active ? '🟢' : '⚪';
-  var statusText = active ? 'Active workflow on ' + branch : 'On branch: ' + branch;
-  gitwfStatusText.textContent = indicator + ' ' + statusText;
-
-  // Details panel
-  var html = '<div style="padding:8px;">';
-
-  // Branch info
-  html += '<div class="memory-entry">';
-  html += '<span class="memory-entry-key">Current Branch</span>: <code>' + escapeHtml(branch) + '</code>';
-  html += '</div>';
-
-  html += '<div class="memory-entry">';
-  html += '<span class="memory-entry-key">In Workflow</span>: ' + (isWorkflow ? '✅ Yes' : '❌ No');
-  html += '</div>';
-
-  if (task) {
-    html += '<div class="memory-entry">';
-    html += '<span class="memory-entry-key">Task</span>: ' + escapeHtml(task);
-    html += '</div>';
-  }
-
-  if (started) {
-    html += '<div class="memory-entry">';
-    html += '<span class="memory-entry-key">Started</span>: ' + escapeHtml(started);
-    html += '</div>';
-  }
-
-  // Files changed
-  if (files.length > 0) {
-    html += '<div class="memory-entry">';
-    html += '<span class="memory-entry-key">Files Changed</span>:';
-    html += '<ul style="margin:4px 0 0 16px;font-size:11px;">';
-    for (var fi = 0; fi < files.length; fi++) {
-      html += '<li><code>' + escapeHtml(files[fi]) + '</code></li>';
-    }
-    html += '</ul></div>';
-  }
-
-  // Review status
-  var reviewColors = {
-    none: 'var(--text-muted)',
-    pending: 'var(--warning)',
-    approved: 'var(--success)',
-    changes_requested: 'var(--error)',
-  };
-  var reviewLabels = {
-    none: 'Not reviewed',
-    pending: '⏳ Pending review',
-    approved: '✅ Approved',
-    changes_requested: '🔴 Changes requested',
-  };
-
-  html += '<div class="memory-entry" style="border-left:3px solid ' + (reviewColors[reviewStatus] || 'var(--text-muted)') + ';padding-left:8px;">';
-  html += '<span class="memory-entry-key">Review Status</span>: <strong>' + (reviewLabels[reviewStatus] || reviewStatus) + '</strong>';
-  html += '</div>';
-
-  // Instructions
-  if (!isWorkflow) {
-    html += '<div style="margin-top:12px;padding:8px;background:var(--bg-primary);border-radius:4px;border-left:3px solid var(--accent);font-size:11px;">';
-    html += '<strong>To start a workflow:</strong><br>';
-    html += '1. Click "Start Workflow" above<br>';
-    html += '2. The AI will create a feature branch<br>';
-    html += '3. Make your code changes<br>';
-    html += '4. Submit for ClaudePlus review<br>';
-    html += '5. Merge when approved</div>';
-  } else if (reviewStatus === 'approved') {
-    html += '<div style="margin-top:12px;padding:8px;background:var(--bg-primary);border-radius:4px;border-left:3px solid var(--success);font-size:11px;">';
-    html += '✅ <strong>Review approved!</strong> Click "Merge" to finalize, or "Abort" to discard.</div>';
-  } else if (reviewStatus === 'changes_requested') {
-    html += '<div style="margin-top:12px;padding:8px;background:var(--bg-primary);border-radius:4px;border-left:3px solid var(--error);font-size:11px;">';
-    html += '🔴 <strong>Changes requested.</strong> Make fixes and submit again via the chat.</div>';
-  } else if (reviewStatus === 'pending') {
-    html += '<div style="margin-top:12px;padding:8px;background:var(--bg-primary);border-radius:4px;border-left:3px solid var(--warning);font-size:11px;">';
-    html += '⏳ <strong>Review in progress...</strong> The AI is waiting for ClaudePlus response. Check back soon.</div>';
-  }
-
-  html += '</div>';
-  gitwfDetails.innerHTML = html;
-}
-
-// ─── Start Workflow ─────────────────────────────────────────────────────────
-async function startGitWorkflow() {
-  var task = prompt('Describe the task for this workflow branch:', '');
-  if (!task || !task.trim()) return;
-
-  gitwfStatusText.textContent = '🔨 Creating branch...';
-  gitwfStartBtn.disabled = true;
-
-  try {
-    var result = await window.deepconsole.gitWorkflow.start(task.trim());
-    if (result && !result.error) {
-      gitwfStatusText.textContent = '✅ Branch created: ' + (result.branch || '?');
-      await loadGitWorkflowStatus();
-    } else if (result && result.message) {
-      gitwfStatusText.textContent = '⚠️ ' + result.message;
-      await loadGitWorkflowStatus();
-    } else {
-      gitwfStatusText.textContent = '⚠️ ' + (result.error || 'Unknown error');
-    }
-  } catch (err) {
-    gitwfStatusText.textContent = '⚠️ Error: ' + err.message;
-    gitwfDetails.innerHTML = '<div class="result-error">Error: ' + err.message + '</div>';
-  }
-
-  gitwfStartBtn.disabled = false;
-}
-
-// ─── Submit for Review ──────────────────────────────────────────────────────
-async function submitGitWorkflow() {
-  var files = prompt('List files changed (comma-separated):', '');
-  if (!files || !files.trim()) return;
-
-  var message = prompt('Commit message / description:', '');
-  if (!message || !message.trim()) return;
-
-  var fileList = files.split(',').map(function(f) { return f.trim(); }).filter(function(f) { return f; });
-
-  gitwfStatusText.textContent = '📤 Submitting for ClaudePlus review...';
-  gitwfSubmitBtn.disabled = true;
-
-  try {
-    var result = await window.deepconsole.gitWorkflow.submit(fileList, message.trim());
-    if (result && !result.error) {
-      var reviewStatus = result.review_status || 'unknown';
-      var reviewText = result.review_text || '(no review text)';
-
-      if (reviewStatus === 'approved') {
-        gitwfStatusText.textContent = '✅ ClaudePlus APPROVED! Merge when ready.';
-        gitwfDetails.innerHTML = '<div style="padding:8px;">'
-          + '<div style="padding:8px;background:rgba(0,200,83,0.1);border-left:3px solid var(--success);border-radius:4px;margin-bottom:8px;">'
-          + '<strong style="color:var(--success);">✅ ClaudePlus Approved</strong>'
-          + '</div>'
-          + '<pre style="font-size:11px;white-space:pre-wrap;background:var(--bg-primary);padding:8px;border-radius:4px;max-height:200px;overflow-y:auto;">' + escapeHtml(reviewText) + '</pre>'
-          + '<div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Click "Merge" to finalize.</div>'
-          + '</div>';
-      } else if (reviewStatus === 'changes_requested') {
-        gitwfStatusText.textContent = '🔴 ClaudePlus requests changes';
-        gitwfDetails.innerHTML = '<div style="padding:8px;">'
-          + '<div style="padding:8px;background:rgba(255,82,82,0.1);border-left:3px solid var(--error);border-radius:4px;margin-bottom:8px;">'
-          + '<strong style="color:var(--error);">🔴 Changes Requested</strong>'
-          + '</div>'
-          + '<pre style="font-size:11px;white-space:pre-wrap;background:var(--bg-primary);padding:8px;border-radius:4px;max-height:200px;overflow-y:auto;">' + escapeHtml(reviewText) + '</pre>'
-          + '<div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Fix the issues in chat, then submit again.</div>'
-          + '</div>';
-      } else {
-        gitwfStatusText.textContent = '⚠️ Review result: ' + reviewStatus;
-        gitwfDetails.innerHTML = '<div style="padding:8px;">'
-          + '<pre style="font-size:11px;white-space:pre-wrap;background:var(--bg-primary);padding:8px;border-radius:4px;">' + escapeHtml(reviewText) + '</pre>'
-          + '</div>';
-      }
-    } else {
-      gitwfStatusText.textContent = '⚠️ ' + (result.error || 'Submit failed');
-    }
-  } catch (err) {
-    gitwfStatusText.textContent = '⚠️ Error: ' + err.message;
-    gitwfDetails.innerHTML = '<div class="result-error">Error: ' + err.message + '</div>';
-  }
-
-  gitwfSubmitBtn.disabled = false;
-}
-
-// ─── Merge Branch ───────────────────────────────────────────────────────────
-async function mergeGitWorkflow() {
-  if (!confirm('Merge the current feature branch into main? This finalizes the changes.')) return;
-
-  gitwfStatusText.textContent = '🔄 Merging...';
-  gitwfMergeBtn.disabled = true;
-
-  try {
-    var result = await window.deepconsole.gitWorkflow.merge();
-    if (result && !result.error) {
-      gitwfStatusText.textContent = '✅ Merged!';
-      gitwfDetails.innerHTML = '<div style="padding:8px;">'
-        + '<div style="padding:8px;background:rgba(0,200,83,0.1);border-left:3px solid var(--success);border-radius:4px;">'
-        + '<strong style="color:var(--success);">✅ ' + escapeHtml(result.message || 'Merged successfully') + '</strong>'
-        + '</div></div>';
-    } else {
-      gitwfStatusText.textContent = '⚠️ ' + (result.error || 'Merge failed');
-    }
-  } catch (err) {
-    gitwfStatusText.textContent = '⚠️ Error: ' + err.message;
-  }
-
-  gitwfMergeBtn.disabled = false;
-}
-
-// ─── Abort Workflow ─────────────────────────────────────────────────────────
-async function abortGitWorkflow() {
-  if (!confirm('ABORT the current workflow? ALL changes on this branch will be LOST. Are you sure?')) return;
-  if (!confirm('Really abort? This discards every change on this branch.')) return;
-
-  gitwfStatusText.textContent = '🗑️ Aborting...';
-  gitwfAbortBtn.disabled = true;
-
-  try {
-    var result = await window.deepconsole.gitWorkflow.abort();
-    if (result && !result.error) {
-      gitwfStatusText.textContent = '🗑️ Abandoned: ' + (result.branch || 'branch');
-      gitwfDetails.innerHTML = '<div style="padding:8px;">'
-        + '<div style="padding:8px;background:rgba(255,165,0,0.1);border-left:3px solid orange;border-radius:4px;">'
-        + '<strong style="color:orange;">🗑️ ' + escapeHtml(result.message || 'Branch abandoned') + '</strong>'
-        + '</div></div>';
-    } else {
-      gitwfStatusText.textContent = '⚠️ ' + (result.error || 'Abort failed');
-    }
-  } catch (err) {
-    gitwfStatusText.textContent = '⚠️ Error: ' + err.message;
-  }
-
-  gitwfAbortBtn.disabled = false;
-}
-
-// ─── Event Listeners ────────────────────────────────────────────────────────
-gitwfRefresh.addEventListener('click', loadGitWorkflowStatus);
-gitwfStartBtn.addEventListener('click', startGitWorkflow);
-gitwfSubmitBtn.addEventListener('click', submitGitWorkflow);
-gitwfMergeBtn.addEventListener('click', mergeGitWorkflow);
-gitwfAbortBtn.addEventListener('click', abortGitWorkflow);
-
-// ─── Export Functions ──────────────────────────────────────────────────────
-window._gitworkflow = {
-  load: loadGitWorkflowStatus,
-  start: startGitWorkflow,
-  submit: submitGitWorkflow,
-  merge: mergeGitWorkflow,
-  abort: abortGitWorkflow,
-};
 
 // ─── Overmind panel ──────────────────────────────────────────────────────────
 const tabOvermind = document.getElementById('overmind-tab');
@@ -2809,8 +2609,8 @@ let myArmId = null;
 (function() {
   var origSwitch = window.switchTab;
   window.switchTab = function(tab) {
-    var tabs = [tabBrowser, tabConsole, tabJS, tabAgents, tabMemory, tabGrimoires, tabBrainWorms, tabGitWorkflow, tabOvermind];
-    var views = [viewBrowser, viewConsole, viewJS, viewAgents, viewMemory, viewGrimoires, viewBrainWorms, viewGitWorkflow, viewOvermind];
+    var tabs = [tabBrowser, tabConsole, tabJS, tabAgents, tabMemory, tabGrimoires, tabBrainWorms, tabOvermind];
+    var views = [viewBrowser, viewConsole, viewJS, viewAgents, viewMemory, viewGrimoires, viewBrainWorms, viewOvermind];
     tabs.forEach(function(t) { t.classList.remove('active'); });
     views.forEach(function(v) { v.classList.remove('active'); });
 
@@ -2821,7 +2621,6 @@ let myArmId = null;
     else if (tab === 'memory') { tabMemory.classList.add('active'); viewMemory.classList.add('active'); refreshMemoryView(); }
     else if (tab === 'grimoires') { tabGrimoires.classList.add('active'); viewGrimoires.classList.add('active'); loadGrimoires(); }
     else if (tab === 'brainworms') { tabBrainWorms.classList.add('active'); viewBrainWorms.classList.add('active'); loadBrainWorms(); }
-    else if (tab === 'gitworkflow') { tabGitWorkflow.classList.add('active'); viewGitWorkflow.classList.add('active'); loadGitWorkflowStatus(); }
     else if (tab === 'overmind') { tabOvermind.classList.add('active'); viewOvermind.classList.add('active'); refreshOvermind(); }
   };
 })();
@@ -3008,43 +2807,3 @@ window.deepconsole.overmind.onEvent((ev) => {
   else if (ev.type === 'board') { renderBoard(ev.board); autonomousWorker.onBoard(ev.board); }
   else if (ev.type === 'ask' && ev.to === myArmId) addIncomingAsk(ev);
 });
-
-// ─── Key Gate ────────────────────────────────────────────────────────────────
-async function enforceKeyGate() {
-  const gate = document.getElementById('key-gate');
-  const input = document.getElementById('key-input');
-  const err = document.getElementById('key-error');
-  const save = document.getElementById('key-save');
-
-  const status = await window.deepconsole.config.getKeyStatus();
-  if (!status.hasKey) gate.classList.remove('hidden');
-
-  save.onclick = async () => {
-    const val = input.value.trim();
-    if (!val.startsWith('sk-')) {
-      err.textContent = 'That does not look like a DeepSeek key (expected sk-...).';
-      err.classList.remove('hidden');
-      return;
-    }
-    await window.deepconsole.config.setKey(val);
-    // Key saved — backend reads it only at spawn, so a restart is required.
-    // Keep the gate open and show a clear success + restart notice.
-    input.style.display = 'none';
-    save.style.display = 'none';
-    err.classList.add('hidden');
-    const notice = document.getElementById('key-restart-notice');
-    notice.classList.remove('hidden');
-  };
-
-  document.getElementById('open-settings').onclick = async () => {
-    const s = await window.deepconsole.config.getKeyStatus();
-    const masked = s.masked ? ` (current: ${s.masked}, ${s.source})` : '';
-    input.value = '';
-    err.textContent = '';
-    err.classList.add('hidden');
-    document.querySelector('.key-card p').textContent =
-      `Update your DeepSeek API key${masked}.`;
-    gate.classList.remove('hidden');
-  };
-}
-enforceKeyGate();
