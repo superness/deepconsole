@@ -1,6 +1,6 @@
 {
   "name": "deepconsole",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "DeepConsole - Local DeepSeek Chat with Integrated Browser Automation",
   "main": "main.js",
   "scripts": {
